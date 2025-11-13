@@ -47,9 +47,11 @@ chmod 400 private/${BASENAME}-key.pem
 
 # Generate CSR
 echo "Step 2: Generating Certificate Signing Request..."
+echo "You will be prompted for certificate details (Country, State, Organization, etc.)"
+echo "Common Name will be set to: $COMMON_NAME"
+echo ""
 openssl req -config temp_server.cnf -key private/${BASENAME}-key.pem \
-    -new -sha256 -out certs/${BASENAME}.csr \
-    -subj "/C=US/ST=State/L=City/O=Organization/OU=IT/CN=$COMMON_NAME"
+    -new -sha256 -out certs/${BASENAME}.csr
 
 # Sign with CA
 echo "Step 3: Signing certificate with CA..."
