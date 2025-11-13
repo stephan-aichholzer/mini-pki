@@ -1,0 +1,59 @@
+# Docker ignore file - exclude artifacts and sensitive data from Docker build context
+
+# Git directory
+.git/
+.gitignore
+
+# Generated certificates and keys (NEVER include in image!)
+private/*.pem
+private/*.key
+certs/*.pem
+certs/*.crt
+certs/*.cer
+newcerts/*.pem
+crl/*.pem
+crl/*.crl
+*.p12
+*.pfx
+*.csr
+
+# CA database files (created at runtime)
+index.txt
+index.txt.*
+serial
+serial.old
+crlnumber
+crlnumber.old
+*.old
+*.attr
+
+# Test and temporary files
+TEST-RESULTS.txt
+SCRIPT-TEST-RESULTS.txt
+test-file.*
+*.sig
+temp_*.cnf
+*.tmp
+*.bak
+
+# Passphrase files
+*pass*.txt
+*password*.txt
+*secret*.txt
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+
+# Keep directory structure markers
+!.gitkeep
