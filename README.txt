@@ -18,7 +18,15 @@ Directory Structure:
 Getting Started:
 ---------------
 
-1. CREATE ROOT CA (Do this first!)
+0. INITIALIZE CA DATABASE (Do this first!)
+   ./init-ca-database.sh
+
+   This will create the required database files:
+   - index.txt (empty CA database)
+   - serial (starting at 1000)
+   - crlnumber (starting at 1000)
+
+1. CREATE ROOT CA (Do this second!)
    ./create-root-ca.sh
 
    This will:
