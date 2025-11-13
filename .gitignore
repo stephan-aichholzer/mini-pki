@@ -1,0 +1,73 @@
+# X.509 Certificate Authority - Git Ignore File
+# Ignore all certificate artifacts and sensitive data
+
+# Private Keys (NEVER commit these!)
+private/*.pem
+private/*.key
+*.p12
+*.pfx
+
+# Certificate Signing Requests
+*.csr
+
+# Generated Certificates (can be regenerated)
+certs/*.pem
+certs/*.crt
+certs/*.cer
+certs/*.p12
+certs/*.pfx
+
+# CA Database Files (track structure but not contents)
+index.txt
+index.txt.attr*
+index.txt.old
+serial
+serial.old
+crlnumber
+crlnumber.old
+*.old
+*.attr
+
+# Certificate Revocation Lists
+crl/*.pem
+crl/*.crl
+*.crl
+
+# Newly issued certificates (managed by OpenSSL CA)
+newcerts/*.pem
+
+# Temporary files
+temp_*.cnf
+*.tmp
+*.bak
+
+# Test files
+test-file.*
+*.sig
+
+# OpenSSL random seed file
+.rand
+.rnd
+
+# Backup files
+*~
+*.swp
+*.swo
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+
+# Passphrase files (NEVER commit!)
+*pass*.txt
+*password*.txt
+*secret*.txt

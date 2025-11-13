@@ -1,0 +1,240 @@
+# OpenSSL Configuration File for X.509 Certificate Generation
+# This configuration allows fine-grained control over certificate attributes
+
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+# Directory and file locations
+dir               = .
+certs             = $dir/certs
+crl_dir           = $dir/crl
+new_certs_dir     = $dir/newcerts
+database          = $dir/index.txt
+serial            = $dir/serial
+RANDFILE          = $dir/.rand
+
+# The root key and certificate
+private_key       = $dir/private/ca-key.pem
+certificate       = $dir/certs/ca-cert.pem
+
+# For certificate revocation lists
+crlnumber         = $dir/crlnumber
+crl               = $dir/crl.pem
+crl_extensions    = crl_ext
+default_crl_days  = 30
+
+# SHA-256 is recommended
+default_md        = sha256
+
+name_opt          = ca_default
+cert_opt          = ca_default
+default_days      = 375
+preserve          = no
+policy            = policy_loose
+
+[ policy_strict ]
+# The root CA should only sign intermediate certificates that match
+countryName             = match
+stateOrProvinceName     = match
+organizationName        = match
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ policy_loose ]
+# Allow the intermediate CA to sign more diverse certificates
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+#########################################
+# Request Configuration
+#########################################
+
+[ req ]
+default_bits        = 2048
+distinguished_name  = req_distinguished_name
+string_mask         = utf8only
+default_md          = sha256
+
+# Extension to add when the -x509 option is used
+x509_extensions     = v3_ca
+
+# Prompt for DN fields
+prompt              = yes
+
+[ req_distinguished_name ]
+# DN field prompts
+countryName                     = Country Name (2 letter code)
+stateOrProvinceName             = State or Province Name
+localityName                    = Locality Name
+0.organizationName              = Organization Name
+organizationalUnitName          = Organizational Unit Name
+commonName                      = Common Name
+emailAddress                    = Email Address
+
+# Default values (optional)
+countryName_default             = US
+stateOrProvinceName_default     = State
+localityName_default            = City
+0.organizationName_default      = Organization
+organizationalUnitName_default  = Unit
+emailAddress_default            = admin@example.com
+
+# Constraints
+countryName_min                 = 2
+countryName_max                 = 2
+commonName_max                  = 64
+emailAddress_max                = 64
+
+#########################################
+# Extensions
+#########################################
+
+[ v3_ca ]
+# Extensions for a typical CA certificate
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+[ v3_intermediate_ca ]
+# Extensions for intermediate CA certificates
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+[ v3_server ]
+# Extensions for server certificates
+basicConstraints = CA:FALSE
+nsCertType = server
+nsComment = "OpenSSL Generated Server Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names_server
+
+[ v3_client ]
+# Extensions for client certificates
+basicConstraints = CA:FALSE
+nsCertType = client, email
+nsComment = "OpenSSL Generated Client Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, emailProtection
+
+[ v3_user ]
+# Extensions for user certificates (signing + encryption)
+basicConstraints = CA:FALSE
+nsCertType = client, email, objsign
+nsComment = "OpenSSL Generated User Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment, dataEncipherment
+extendedKeyUsage = clientAuth, emailProtection, codeSigning
+
+[ v3_code_signing ]
+# Extensions for code signing certificates
+basicConstraints = CA:FALSE
+nsCertType = objsign
+nsComment = "OpenSSL Generated Code Signing Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, codeSigning
+
+[ v3_ocsp ]
+# Extensions for OCSP signing certificates
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, OCSPSigning
+
+[ v3_timestamp ]
+# Extensions for time stamping certificates
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, digitalSignature, nonRepudiation
+extendedKeyUsage = critical, timeStamping
+
+[ v3_custom ]
+# Custom extensions - modify as needed
+basicConstraints = CA:FALSE
+nsCertType = server, client
+nsComment = "OpenSSL Generated Custom Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = critical, digitalSignature, keyEncipherment, dataEncipherment, keyAgreement
+extendedKeyUsage = serverAuth, clientAuth, emailProtection
+# Uncomment and modify for SAN:
+# subjectAltName = @alt_names_custom
+
+[ crl_ext ]
+# Extension for CRLs
+authorityKeyIdentifier=keyid:always
+
+[ ocsp ]
+# Extension for OCSP signing certificates
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, OCSPSigning
+
+#########################################
+# Subject Alternative Names (SAN)
+#########################################
+
+[ alt_names_server ]
+# Server certificate SANs - customize as needed
+DNS.1 = localhost
+DNS.2 = server.example.com
+DNS.3 = www.example.com
+IP.1 = 127.0.0.1
+IP.2 = ::1
+
+[ alt_names_custom ]
+# Custom SANs - modify as needed
+DNS.1 = example.com
+DNS.2 = *.example.com
+email.1 = admin@example.com
+IP.1 = 192.168.1.1
+URI.1 = https://example.com
+
+#########################################
+# Additional Key Usage Options
+#########################################
+
+# Key Usage values:
+#   digitalSignature
+#   nonRepudiation
+#   keyEncipherment
+#   dataEncipherment
+#   keyAgreement
+#   keyCertSign
+#   cRLSign
+#   encipherOnly
+#   decipherOnly
+
+# Extended Key Usage values:
+#   serverAuth          - TLS Web Server Authentication
+#   clientAuth          - TLS Web Client Authentication
+#   codeSigning         - Code Signing
+#   emailProtection     - E-mail Protection
+#   timeStamping        - Time Stamping
+#   OCSPSigning         - OCSP Signing
+#   ipsecIKE            - IPsec IKE
+#   msCodeInd           - Microsoft Individual Code Signing
+#   msCodeCom           - Microsoft Commercial Code Signing
+#   msCTLSign           - Microsoft Trust List Signing
+#   msEFS               - Microsoft Encrypted File System
