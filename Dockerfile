@@ -27,26 +27,45 @@ WORKDIR /ca
 
 # Copy CA scripts and configuration
 COPY openssl.cnf ./
-COPY create-*.sh ./
-COPY test-create-*.sh ./
-COPY README.txt ./
+COPY *.sh ./
+COPY *.md ./
 
 # Make scripts executable
-RUN chmod +x create-*.sh test-create-*.sh
+RUN chmod +x *.sh
 
 # Create CA directory structure
+# Note: Database files (index.txt, serial, crlnumber) should be created
+# at runtime using init-ca-database.sh to persist in volumes
 RUN mkdir -p certs private newcerts crl && \
-    chmod 700 private && \
-    touch index.txt && \
-    echo 1000 > serial && \
-    echo 1000 > crlnumber
+    chmod 700 private
 
 # Set environment variables
 ENV OPENSSL_CONF=/ca/openssl.cnf
 ENV PATH=/ca:$PATH
 
-# Volume for persistent CA data (private keys, certificates, database)
-VOLUME ["/ca/private", "/ca/certs", "/ca/newcerts", "/ca/crl"]
+# Volume for persistent CA data
+# Mount entire /ca to preserve all state (database, certs, keys)
+# This ensures index.txt, serial, and crlnumber persist
+VOLUME ["/ca"]
+
+# Expose port for testing (optional)
+EXPOSE 4433
+
+# Create a welcome script
+RUN echo '#!/bin/bash' > /ca/welcome.sh && \
+    echo 'echo "=== X.509 CA Environment ==="' >> /ca/welcome.sh && \
+    echo 'echo "Quick Start:"' >> /ca/welcome.sh && \
+    echo 'echo "  1. ./init-ca-database.sh"' >> /ca/welcome.sh && \
+    echo 'echo "  2. ./create-root-ca.sh"' >> /ca/welcome.sh && \
+    echo 'echo "  3. ./create-server-cert.sh <hostname>"' >> /ca/welcome.sh && \
+    echo 'echo ""' >> /ca/welcome.sh && \
+    echo 'echo "Available scripts:"' >> /ca/welcome.sh && \
+    echo 'ls -1 *.sh | grep -v welcome' >> /ca/welcome.sh && \
+    echo 'echo ""' >> /ca/welcome.sh && \
+    chmod +x /ca/welcome.sh
+
+# Set bash to show welcome message on interactive shells
+RUN echo 'if [ "$PS1" ]; then /ca/welcome.sh; fi' >> /root/.bashrc
 
 # Default command: bash shell for interactive use
 CMD ["/bin/bash"]

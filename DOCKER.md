@@ -19,8 +19,10 @@ docker run -it --rm x509-ca:latest
 ## Image Details
 
 **Base Image:** Alpine Linux 3.19 (minimal, secure)
-**Size:** ~62 MB
+**Size:** ~57 MB
 **OpenSSL Version:** 3.1.8
+
+**Interactive Welcome:** Container displays quick start guide on launch
 
 ### Included Tools
 
@@ -42,12 +44,27 @@ docker run -it --rm x509-ca:latest
 ```bash
 # Run with persistent volume for CA data
 docker run -it --rm \
-  -v $(pwd)/ca-data:/ca \
+  -v ca-data:/ca \
   x509-ca:latest
+```
+
+You'll see a welcome message:
+```
+=== X.509 CA Environment ===
+Quick Start:
+  1. ./init-ca-database.sh
+  2. ./create-root-ca.sh
+  3. ./create-server-cert.sh <hostname>
+
+Available scripts:
+[list of all scripts]
 ```
 
 Inside the container:
 ```bash
+# Initialize CA database (first time only)
+./init-ca-database.sh
+
 # Create root CA
 ./create-root-ca.sh
 
