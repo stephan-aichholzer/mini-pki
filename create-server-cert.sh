@@ -40,9 +40,28 @@ sed -i 's/subjectAltName = @alt_names_server/subjectAltName = @alt_names_temp/' 
 
 BASENAME=$(echo $COMMON_NAME | sed 's/[^a-zA-Z0-9._-]/_/g')
 
-# Generate private key (no password for server keys typically)
+# Ask about password protection
+echo ""
+read -p "Do you want to password-protect the server private key? (y/N): " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    USE_PASSWORD=true
+    echo "Note: You will need to enter this passphrase when starting your server"
+    echo "      or configure your server to prompt for it at startup."
+else
+    USE_PASSWORD=false
+fi
+echo ""
+
+# Generate private key
 echo "Step 1: Generating private key..."
-openssl genrsa -out private/${BASENAME}-key.pem 2048
+if [ "$USE_PASSWORD" = true ]; then
+    echo "You will be prompted to enter a passphrase for the private key"
+    openssl genrsa -aes256 -out private/${BASENAME}-key.pem 2048
+else
+    echo "Generating unencrypted private key (no passphrase)"
+    openssl genrsa -out private/${BASENAME}-key.pem 2048
+fi
 chmod 400 private/${BASENAME}-key.pem
 
 # Generate CSR
@@ -70,7 +89,11 @@ echo ""
 echo "=== Server Certificate Created Successfully ==="
 echo ""
 echo "Files created:"
-echo "  Private Key: private/${BASENAME}-key.pem"
+if [ "$USE_PASSWORD" = true ]; then
+    echo "  Private Key: private/${BASENAME}-key.pem (PASSWORD PROTECTED)"
+else
+    echo "  Private Key: private/${BASENAME}-key.pem (no password)"
+fi
 echo "  Certificate: certs/${BASENAME}-cert.pem"
 echo "  CSR: certs/${BASENAME}.csr"
 echo ""
@@ -80,3 +103,8 @@ echo ""
 echo "To verify against CA:"
 echo "  openssl verify -CAfile certs/ca-cert.pem certs/${BASENAME}-cert.pem"
 echo ""
+if [ "$USE_PASSWORD" = true ]; then
+    echo "To remove passphrase from private key (if needed for automated startup):"
+    echo "  openssl rsa -in private/${BASENAME}-key.pem -out private/${BASENAME}-key-nopass.pem"
+    echo ""
+fi
