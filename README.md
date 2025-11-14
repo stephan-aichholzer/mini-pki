@@ -178,20 +178,6 @@ openssl pkcs12 -export -out certs/bundle.p12 \
   -certfile certs/ca-cert.pem
 ```
 
-## POCO C++ Integration
-
-For using certificates with POCO C++ SSL/TLS applications, see [POCO-USAGE.md](POCO-USAGE.md).
-
-**Quick example:**
-```cpp
-// Use combined PEM file
-Poco::Net::Context::Ptr pContext = new Poco::Net::Context(
-    Poco::Net::Context::SERVER_USE,
-    "certs/server-combined.pem",
-    Poco::Net::Context::VERIFY_RELAXED
-);
-```
-
 ## Certificate Revocation
 
 ```bash
@@ -304,7 +290,6 @@ rm index.txt* serial* crlnumber*
 
 **Optional:**
 - Docker (for containerized usage)
-- POCO C++ (for SSL/TLS applications)
 
 ## Testing
 
@@ -328,7 +313,6 @@ This project is designed to be self-contained and production-ready. Contribution
 
 - [OpenSSL Documentation](https://www.openssl.org/docs/)
 - [X.509 Standard (RFC 5280)](https://tools.ietf.org/html/rfc5280)
-- [POCO C++ SSL/TLS Guide](https://pocoproject.org/docs/00200-NetSSLOverview.html)
 
 ## License
 
