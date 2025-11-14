@@ -2,30 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2025-11-14
 
 ### Added
 - Automatic key/certificate verification in all creation scripts
-- POCO C++ SSL/TLS usage guide with complete examples
 - Verification and combined PEM tools for OpenSSL applications
 - Optional passphrase protection for server certificates
-- Interactive X.509 certificate detail prompts
-- CA database initialization script
-- Docker containerization support (Alpine Linux 3.19)
-- Comprehensive documentation (README.md, DOCKER.md, POCO-USAGE.md)
-- Test scripts for CI/CD automation
+- Interactive X.509 certificate detail prompts (no hardcoded values)
+- CA database initialization script (`init-ca-database.sh`)
+- Docker containerization support (Alpine Linux 3.19, 57MB image)
+- Interactive welcome message in Docker container
 - Helper scripts: `verify-key-cert-match.sh`, `create-combined-pem.sh`, `test-server-cert-openssl.sh`
+- Comprehensive Markdown documentation (README.md, DOCKER.md, CHANGELOG.md)
 
 ### Changed
 - Email address is now optional in certificates (press Enter to skip)
-- All production scripts now use interactive prompts instead of hardcoded values
-- README converted from .txt to .md with improved formatting
-- OpenSSL config updated to use correct paths for CA files
+- All production scripts use interactive prompts instead of hardcoded `-subj` values
+- README converted from .txt to .md with improved formatting, badges, and tables
+- OpenSSL config updated to use correct paths for CA files (`private/`, `certs/`)
+- Docker now uses single volume mount (`/ca`) for better persistence
+- Docker COPY strategy updated to explicitly list required scripts
+
+### Removed
+- POCO C++ usage guide (not needed for core functionality)
+- Test scripts for CI/CD (not essential, users can use interactive scripts)
 
 ### Fixed
 - Certificate creation scripts now verify key/cert match before completion
 - Prevents "X509_check_private_key: key values mismatch" errors
 - Fixed CA database file paths in openssl.cnf
+- Docker container now includes all helper scripts and documentation
 
 ## [1.0.0] - 2025-11-13
 
