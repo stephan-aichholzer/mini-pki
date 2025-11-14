@@ -76,7 +76,7 @@ localityName                    = Locality Name
 0.organizationName              = Organization Name
 organizationalUnitName          = Organizational Unit Name
 commonName                      = Common Name
-emailAddress                    = Email Address
+emailAddress                    = Email Address (optional - press Enter to skip)
 
 # Default values (optional)
 countryName_default             = US
@@ -84,7 +84,7 @@ stateOrProvinceName_default     = State
 localityName_default            = City
 0.organizationName_default      = Organization
 organizationalUnitName_default  = Unit
-emailAddress_default            = admin@example.com
+# emailAddress has no default - leave empty to omit from certificate
 
 # Constraints
 countryName_min                 = 2
