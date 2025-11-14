@@ -293,13 +293,7 @@ rm index.txt* serial* crlnumber*
 
 ## Testing
 
-Test scripts are included for automated/CI-CD usage:
-- `test-create-root-ca.sh`
-- `test-create-server-cert.sh`
-- `test-create-client-cert.sh`
-- `test-create-code-signing-cert.sh`
-
-These use hardcoded values and passphrases for non-interactive testing.
+Use the `test-server-cert-openssl.sh` script to validate certificates with OpenSSL before deployment.
 
 ## Contributing
 

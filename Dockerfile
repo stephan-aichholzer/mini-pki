@@ -27,7 +27,7 @@ WORKDIR /ca
 
 # Copy CA scripts and configuration
 COPY openssl.cnf ./
-COPY *.sh ./
+COPY create-*.sh init-ca-database.sh verify-key-cert-match.sh test-server-cert-openssl.sh ./
 COPY *.md ./
 
 # Make scripts executable
