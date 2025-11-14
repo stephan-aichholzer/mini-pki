@@ -1,5 +1,5 @@
 #!/bin/bash
-# Script to create a combined PEM file for use with OpenSSL/POCO C++
+# Script to create a combined PEM file for server applications
 # Combines private key + certificate + CA chain into a single file
 
 set -e
@@ -106,21 +106,17 @@ if [ -n "$CA_CERT" ]; then
     echo "  ✓ CA certificate chain"
 fi
 echo ""
-echo "Usage in POCO C++:"
-echo "  Poco::Net::Context::Ptr context = new Poco::Net::Context("
-echo "      Poco::Net::Context::SERVER_USE,"
-echo "      \"$OUTPUT_FILE\",  // combined PEM file"
-echo "      Poco::Net::Context::VERIFY_RELAXED,"
-echo "      9,"
-echo "      true"
-echo "  );"
+echo "Usage examples:"
 echo ""
-echo "Or for client mode:"
-echo "  Poco::Net::Context::Ptr context = new Poco::Net::Context("
-echo "      Poco::Net::Context::CLIENT_USE,"
-echo "      \"$OUTPUT_FILE\","
-echo "      \"\",  // no separate CA file needed"
-echo "      \"\",  // verification mode"
-echo "      Poco::Net::Context::VERIFY_RELAXED"
-echo "  );"
+echo "Nginx (nginx.conf):"
+echo "  ssl_certificate $OUTPUT_FILE;"
+echo "  ssl_certificate_key $OUTPUT_FILE;"
+echo ""
+echo "Apache (httpd.conf):"
+echo "  SSLCertificateFile $OUTPUT_FILE"
+echo ""
+echo "Node.js (HTTPS server):"
+echo "  const options = {"
+echo "    pfx: fs.readFileSync('$OUTPUT_FILE')"
+echo "  };"
 echo ""

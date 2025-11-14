@@ -84,12 +84,13 @@ x509-ca/
 │   ├── create-code-signing-cert.sh
 │   ├── verify-key-cert-match.sh
 │   ├── create-combined-pem.sh
+│   ├── create-pkcs12-bundle.sh
 │   └── test-server-cert-openssl.sh
 │
 ├── Documentation/
 │   ├── README.md (this file)
 │   ├── DOCKER.md
-│   └── POCO-USAGE.md
+│   └── CHANGELOG.md
 │
 └── Dockerfile
 ```
@@ -120,13 +121,21 @@ See [DOCKER.md](DOCKER.md) for detailed usage.
 ./verify-key-cert-match.sh private/server-key.pem certs/server-cert.pem
 ```
 
-### Create Combined PEM for Applications
+### Create Combined PEM for Server Applications
 
 ```bash
 ./create-combined-pem.sh private/server-key.pem certs/server-cert.pem certs/ca-cert.pem
 ```
 
-Creates `certs/server-combined.pem` with key + certificate + CA chain.
+Creates `certs/server-combined.pem` with key + certificate + CA chain for nginx, Apache, etc.
+
+### Create PKCS#12 Bundle for Cross-Platform Distribution
+
+```bash
+./create-pkcs12-bundle.sh private/server-key.pem certs/server-cert.pem certs/ca-cert.pem
+```
+
+Creates `certs/server.p12` bundle for Windows IIS, browsers, Java keystores, and mobile devices.
 
 ### Test Server Certificate
 
@@ -170,13 +179,23 @@ openssl s_client -connect localhost:4433 -CAfile certs/ca-cert.pem
 
 ### PKCS#12 Bundles
 
+Use the `create-pkcs12-bundle.sh` script for an interactive way to create bundles:
+
 ```bash
-# Create .p12 bundle
+./create-pkcs12-bundle.sh private/server-key.pem certs/server-cert.pem certs/ca-cert.pem
+```
+
+Or manually with OpenSSL:
+
+```bash
 openssl pkcs12 -export -out certs/bundle.p12 \
   -inkey private/server-key.pem \
   -in certs/server-cert.pem \
-  -certfile certs/ca-cert.pem
+  -certfile certs/ca-cert.pem \
+  -name "My Certificate"
 ```
+
+Import into Windows, macOS, browsers, or Java keystores.
 
 ## Certificate Revocation
 
