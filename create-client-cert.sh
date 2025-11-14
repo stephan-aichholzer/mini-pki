@@ -41,6 +41,21 @@ openssl ca -config openssl.cnf -extensions v3_client \
 
 chmod 444 certs/${BASENAME}-cert.pem
 
+# Verify key and certificate match
+echo ""
+echo "Verifying certificate and private key match..."
+PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in private/${BASENAME}-key.pem 2>/dev/null | openssl md5)
+CERT_MODULUS=$(openssl x509 -noout -modulus -in certs/${BASENAME}-cert.pem 2>/dev/null | openssl md5)
+
+if [ "$PRIVATE_MODULUS" != "$CERT_MODULUS" ]; then
+    echo "✗ ERROR: Private key and certificate DO NOT MATCH!"
+    echo ""
+    echo "This is a critical error. The certificate cannot be used with this key."
+    echo "Please report this issue with details about what you entered during prompts."
+    exit 1
+fi
+echo "✓ Verification passed: Private key and certificate match"
+
 echo ""
 echo "=== Client Certificate Created Successfully ==="
 echo ""
