@@ -20,6 +20,9 @@ fi
 echo "2. Create a self-signed root CA certificate valid for 10 years"
 echo ""
 
+card_preflight init
+echo ""
+
 # Keys are created 0600 rather than 0400 so that a CA can be regenerated in
 # place; the one case worth guarding is replacing a CA that has already issued
 # certificates, because index.txt and serial still refer to the old one.

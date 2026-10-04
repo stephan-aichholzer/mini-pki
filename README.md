@@ -402,6 +402,22 @@ openssl verify -CAfile certs/ca-cert.pem certs/server.example.com-cert.pem
 ```
 
 An ECC CA can issue certificates for the RSA leaf keys - mixing is fine.
+
+**Pre-flight check.** In card mode every script checks the card *before* the
+first prompt - read-only, no PIN, under a second:
+
+```
+Card pre-flight check...
+  ✓ card 1178F12543E0C897 ready
+  ✓ CA key 'mini-pki-ca' on the card matches certs/ca-cert.pem
+```
+
+`init-ca-database.sh` and `create-root-ca.sh` check that the card is present
+(the right one, if `CARD_TOKEN` is set) and its PIN is neither expired nor
+locked. The issuing scripts also check that the CA key is on the card and
+that `certs/ca-cert.pem` belongs to it - so a wrong card or a wrong
+`CARD_KEY_LABEL` stops the script instead of producing certificates that do
+not verify.
 For revocation and CRLs see [Certificate Revocation](#certificate-revocation).
 
 ### Step 7 - Inspect the card
@@ -452,7 +468,8 @@ to `card-tree.py` to see the card through OpenSC instead.
 | `CKR_ATTRIBUTE_VALUE_INVALID` on key generation | Curve not enabled on the card, e.g. `EC:secp384r1` - use `EC:prime256v1` or RSA |
 | `CKR_DEVICE_MEMORY` on key generation, card not full | Key size not enabled on the card, e.g. `rsa:3072` - use `rsa:2048` or `rsa:4096` |
 | `pkcs11 provider not found` | Run `card-tools/build-pkcs11-provider.sh` (or `apt install pkcs11-provider`, or set `PKCS11_PROVIDER_DIR`) |
-| Issued certificate does not verify | `CARD_KEY_LABEL` differs from the one the CA was created with - keep the settings in `pki.conf` |
+| `certs/ca-cert.pem does not belong to key ...` | Wrong card, or `CARD_KEY_LABEL` differs from the one the CA was created with - keep the settings in `pki.conf` |
+| `CA key '...' is not on this card` / `card '...' not found` | Another card is inserted, or `CARD_KEY_LABEL` / `CARD_TOKEN` in `pki.conf` is wrong |
 | A second PIN slot shows up (OpenSC) | The IDPrime 940 *Digital Signature PIN* - not used by mini-pki. Logging in to it with the user PIN costs a try; `card-tree.py --login` only uses one slot |
 
 Card mode is meant for the host: the Docker image has no PC/SC access unless

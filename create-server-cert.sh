@@ -11,6 +11,8 @@ if [ "$#" -lt 1 ]; then
     exit 1
 fi
 
+card_preflight issue
+
 COMMON_NAME=$1
 shift
 DNS_NAMES="$@"

@@ -11,6 +11,8 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
+card_preflight issue
+
 SIGNER_NAME=$1
 BASENAME=$(echo $SIGNER_NAME | sed 's/[^a-zA-Z0-9._-]/_/g')
 

@@ -27,6 +27,11 @@ All notable changes to this project will be documented in this file.
   inspect) with troubleshooting
 - `docs/PIN_USAGE.md`: which PIN protects which key on an IDPrime 940, and
   CA signatures vs. eIDAS qualified signatures
+- Card pre-flight check (`card_preflight` in `lib/ca-key.sh`) before the first
+  prompt of every script in card mode: card present (and the configured
+  `CARD_TOKEN`), user PIN not expired or locked; for issuing also the CA key
+  on the card and `certs/ca-cert.pem` belonging to it. Read-only, no PIN.
+  `init-ca-database.sh` now loads `lib/ca-key.sh` for this
 - `pki.conf` and `lib/ca-key.sh` hold the CA key backend settings shared by all
   scripts; the default `file` backend behaves exactly as before
 - Dockerfile copies `pki.conf` and `lib/`, which the scripts now source

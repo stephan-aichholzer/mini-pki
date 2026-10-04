@@ -4,8 +4,13 @@
 
 set -e
 
+. "$(dirname "$0")/lib/ca-key.sh"
+
 echo "=== Initializing CA Database ==="
 echo ""
+
+# In card mode, make sure the card is usable before setting anything up
+card_preflight init
 
 # Create CA database file
 if [ ! -f index.txt ]; then
