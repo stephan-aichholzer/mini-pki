@@ -362,7 +362,14 @@ CARD_KEY_LABEL=mini-pki-ca-ec
 CARD_KEY_ID=02
 ```
 
-- SAC 10.9 only offers the P-256 curve on the IDPrime 940 (P-384 is refused).
+- **Supported key types depend on the card's factory configuration**, not on
+  the software. A standard IDPrime 940 generates **RSA-2048, RSA-4096 and
+  EC P-256**. EC P-384/P-521 and RSA-3072 are refused - Thales: *"P-384 &
+  P-521 bits ECDSA, ECDH are available via a custom configuration"*, i.e.
+  cards ordered with a different profile. SAC's mechanism list
+  (`pkcs11-tool --module /usr/lib/libeTPkcs11.so -M`) shows the curve limit
+  (ECDSA 256-256) but advertises RSA 2048-4096 as a range; OpenSC lists
+  curves 256-521 for every IDPrime 940 regardless of the card.
 - **One CA per directory.** `certs/ca-cert.pem`, `index.txt` and `serial`
   belong to exactly one CA key. For an RSA and an ECC CA side by side, use
   two copies of this directory, each with its own `pki.conf`.
@@ -442,7 +449,8 @@ to `card-tree.py` to see the card through OpenSC instead.
 |---|---|
 | `Card absent or mute` in the pcscd log, no ATR | Card inserted the wrong way round, or dirty contacts |
 | `CKR_PIN_EXPIRED` | Factory PIN still active - step 3 |
-| `CKR_ATTRIBUTE_VALUE_INVALID` on key generation | Unsupported key type, e.g. `EC:secp384r1` - use P-256 or RSA |
+| `CKR_ATTRIBUTE_VALUE_INVALID` on key generation | Curve not enabled on the card, e.g. `EC:secp384r1` - use `EC:prime256v1` or RSA |
+| `CKR_DEVICE_MEMORY` on key generation, card not full | Key size not enabled on the card, e.g. `rsa:3072` - use `rsa:2048` or `rsa:4096` |
 | `pkcs11 provider not found` | Run `card-tools/build-pkcs11-provider.sh` (or `apt install pkcs11-provider`, or set `PKCS11_PROVIDER_DIR`) |
 | Issued certificate does not verify | `CARD_KEY_LABEL` differs from the one the CA was created with - keep the settings in `pki.conf` |
 | A second PIN slot shows up (OpenSC) | The IDPrime 940 *Digital Signature PIN* - not used by mini-pki. Logging in to it with the user PIN costs a try; `card-tree.py --login` only uses one slot |

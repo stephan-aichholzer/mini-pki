@@ -11,7 +11,9 @@ All notable changes to this project will be documented in this file.
   CA certificate there; the signing scripts issue certificates with it through
   the OpenSSL pkcs11-provider, prompting for the card PIN
 - The card CA key can be RSA (default `rsa:4096`) or ECC P-256
-  (`CARD_KEY_TYPE=EC:prime256v1`); SAC 10.9 only offers P-256 (P-384 is refused)
+  (`CARD_KEY_TYPE=EC:prime256v1`); a standard IDPrime 940 is configured for
+  RSA-2048/4096 and P-256 only - P-384/P-521 and RSA-3072 need a custom card
+  configuration
 - `card-tools/`: optional helpers for card mode - `card-status.sh` (read-only
   health check), `card-tree.py` (tree view of keys and certificates on the
   card) and `card-set-expired-pin.py` (changes the expired factory PIN,
