@@ -18,6 +18,7 @@ echo "Common Name: $COMMON_NAME"
 echo ""
 
 # Create a temporary config file with custom SANs
+trap 'rm -f temp_server.cnf' EXIT
 cat openssl.cnf > temp_server.cnf
 echo "" >> temp_server.cnf
 echo "[ alt_names_temp ]" >> temp_server.cnf
@@ -42,8 +43,10 @@ BASENAME=$(echo $COMMON_NAME | sed 's/[^a-zA-Z0-9._-]/_/g')
 
 # Ask about password protection
 echo ""
-read -p "Do you want to password-protect the server private key? (y/N): " -n 1 -r
-echo ""
+# Read a whole line, not a single character: with `read -n 1` the Enter the
+# user presses after "y" stays in the input buffer, and openssl's next
+# passphrase prompt consumes it as an empty passphrase and aborts.
+read -r -p "Do you want to password-protect the server private key? (y/N): " REPLY
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     USE_PASSWORD=true
     echo "Note: You will need to enter this passphrase when starting your server"
@@ -62,12 +65,14 @@ else
     echo "Generating unencrypted private key (no passphrase)"
     openssl genrsa -out private/${BASENAME}-key.pem 2048
 fi
-chmod 400 private/${BASENAME}-key.pem
+chmod 600 private/${BASENAME}-key.pem
 
 # Generate CSR
 echo "Step 2: Generating Certificate Signing Request..."
 echo "You will be prompted for certificate details (Country, State, Organization, etc.)"
-echo "Common Name will be set to: $COMMON_NAME"
+echo "Enter this as the Common Name: $COMMON_NAME"
+echo "(the Common Name is not filled in automatically - it must match the name"
+echo " above, which is what the SAN entries and output filenames are based on)"
 echo ""
 openssl req -config temp_server.cnf -key private/${BASENAME}-key.pem \
     -new -sha256 -out certs/${BASENAME}.csr
@@ -80,16 +85,20 @@ openssl ca -config temp_server.cnf -extensions v3_server \
     -in certs/${BASENAME}.csr \
     -out certs/${BASENAME}-cert.pem
 
-chmod 444 certs/${BASENAME}-cert.pem
-
-# Cleanup
-rm temp_server.cnf
+chmod 644 certs/${BASENAME}-cert.pem
 
 # Verify key and certificate match
 echo ""
 echo "Verifying certificate and private key match..."
-PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in private/${BASENAME}-key.pem 2>/dev/null | openssl md5)
-CERT_MODULUS=$(openssl x509 -noout -modulus -in certs/${BASENAME}-cert.pem 2>/dev/null | openssl md5)
+# Compare the raw moduli directly. Piping through `openssl md5` masked
+# failures: if both openssl calls failed they each hashed empty input to the
+# same digest, and the scripts reported a MATCH. Without the pipe, `set -e`
+# aborts on a failed extraction, and the passphrase prompt stays visible.
+if [ "$USE_PASSWORD" = true ]; then
+    echo "(enter the private key passphrase once more to verify the pair)"
+fi
+PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in private/${BASENAME}-key.pem)
+CERT_MODULUS=$(openssl x509 -noout -modulus -in certs/${BASENAME}-cert.pem)
 
 if [ "$PRIVATE_MODULUS" != "$CERT_MODULUS" ]; then
     echo "✗ ERROR: Private key and certificate DO NOT MATCH!"

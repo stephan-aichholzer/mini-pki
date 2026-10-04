@@ -28,8 +28,6 @@ crlnumber.old
 *.attr
 
 # Test and temporary files
-TEST-RESULTS.txt
-SCRIPT-TEST-RESULTS.txt
 test-file.*
 *.sig
 temp_*.cnf

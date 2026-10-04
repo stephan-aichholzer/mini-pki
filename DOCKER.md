@@ -16,11 +16,15 @@ docker build -t x509-ca:latest .
 docker run -it --rm x509-ca:latest
 ```
 
+> **Note:** All certificate-creation scripts are interactive — they prompt for
+> X.509 subject fields and passphrases. Always run them with `-it`. They cannot
+> be run unattended.
+
 ## Image Details
 
-**Base Image:** Alpine Linux 3.19 (minimal, secure)
-**Size:** ~57 MB
-**OpenSSL Version:** 3.1.8
+**Base Image:** Alpine Linux 3.24 (minimal)
+**Size:** ~99 MB
+**OpenSSL Version:** 3.5.x
 
 **Interactive Welcome:** Container displays quick start guide on launch
 
@@ -82,7 +86,7 @@ Inside the container:
 docker run --rm x509-ca:latest openssl version
 
 # View README
-docker run --rm x509-ca:latest cat README.txt
+docker run --rm x509-ca:latest cat README.md
 
 # List available scripts
 docker run --rm x509-ca:latest ls -l *.sh
@@ -91,6 +95,10 @@ docker run --rm x509-ca:latest ls -l *.sh
 ### 3. Persistent Storage with Volumes
 
 **Option A: Named Volume (Recommended)**
+
+A named volume is seeded from the image on first use, so the scripts and
+`openssl.cnf` are present inside it.
+
 ```bash
 # Create named volume
 docker volume create ca-data
@@ -107,33 +115,30 @@ docker run --rm \
   ls -la /ca
 ```
 
-**Option B: Bind Mount (Local Directory)**
-```bash
-# Create local directory for CA data
-mkdir -p ./ca-data
+**Option B: Bind Mounts (Local Directories)**
 
-# Run with bind mount
+Do **not** bind-mount a host directory over `/ca` — that hides the scripts and
+`openssl.cnf` baked into the image, leaving an empty working directory. Mount
+the individual data directories instead, and keep the CA database on the host
+too so `index.txt`, `serial`, and `crlnumber` persist.
+
+```bash
+# Create local directories for CA data
+mkdir -p ./ca-data/{certs,private,newcerts,crl}
+
+# Run with bind mounts
 docker run -it --rm \
-  -v $(pwd)/ca-data:/ca \
+  -v $(pwd)/ca-data/certs:/ca/certs \
+  -v $(pwd)/ca-data/private:/ca/private \
+  -v $(pwd)/ca-data/newcerts:/ca/newcerts \
+  -v $(pwd)/ca-data/crl:/ca/crl \
   x509-ca:latest
 ```
 
-### 4. Automated Testing
+### 4. Extract Generated Certificates
 
 ```bash
-# Run automated tests
-docker run --rm x509-ca:latest bash -c "
-  ./test-create-root-ca.sh && \
-  ./test-create-server-cert.sh server.example.com && \
-  ./test-create-client-cert.sh client1@example.com && \
-  openssl verify -CAfile certs/ca-cert.pem certs/test-server.example.com-cert.pem
-"
-```
-
-### 5. Extract Generated Certificates
-
-```bash
-# Run container with volume
+# Run container with the certs directory bind-mounted
 docker run -it --rm \
   -v $(pwd)/output:/ca/certs \
   x509-ca:latest
@@ -143,22 +148,23 @@ docker run -it --rm \
 
 ## Volume Mounts
 
-The image defines the following volumes:
+The image declares a single volume:
 
-- `/ca/private` - Private keys (KEEP SECURE!)
-- `/ca/certs` - Generated certificates
-- `/ca/newcerts` - CA-managed certificate copies
-- `/ca/crl` - Certificate Revocation Lists
+- `/ca` - the entire CA working directory (scripts, config, database, keys, certs)
 
-**Example with separate volumes:**
+Mounting all of `/ca` keeps every piece of CA state together, including the
+database files (`index.txt`, `serial`, `crlnumber`) that `openssl ca` needs.
+
 ```bash
 docker run -it --rm \
-  -v ca-private:/ca/private \
-  -v ca-certs:/ca/certs \
-  -v ca-newcerts:/ca/newcerts \
-  -v ca-crl:/ca/crl \
+  -v ca-data:/ca \
   x509-ca:latest
 ```
+
+If you prefer to separate the data directories, mount them individually as
+shown in Option B above. Note that the CA database files live at the root of
+`/ca`, so splitting the mounts means they stay inside the container unless you
+mount `/ca` as well.
 
 ## Environment Variables
 
@@ -198,30 +204,26 @@ docker run -it --rm \
 
 ```bash
 docker run -it --rm \
-  -v $(pwd)/custom-openssl.cnf:/ca/openssl.cnf:ro \
   -v ca-data:/ca \
+  -v $(pwd)/custom-openssl.cnf:/ca/openssl.cnf:ro \
   x509-ca:latest
 ```
 
 ### Multi-Stage CA Workflow
 
+Each step runs in its own container against the same named volume. The
+creation scripts prompt for input, so they need `-it`.
+
 ```bash
-# 1. Create CA in one container
-docker run --rm \
-  -v ca-data:/ca \
-  x509-ca:latest \
-  ./test-create-root-ca.sh
+# 1. Initialize the database and create the CA
+docker run -it --rm -v ca-data:/ca x509-ca:latest ./init-ca-database.sh
+docker run -it --rm -v ca-data:/ca x509-ca:latest ./create-root-ca.sh
 
-# 2. Create server cert in another container
-docker run --rm \
-  -v ca-data:/ca \
-  x509-ca:latest \
-  ./test-create-server-cert.sh myserver.com
+# 2. Create a server certificate
+docker run -it --rm -v ca-data:/ca x509-ca:latest ./create-server-cert.sh myserver.com
 
-# 3. Verify certificate
-docker run --rm \
-  -v ca-data:/ca \
-  x509-ca:latest \
+# 3. Verify the certificate (non-interactive)
+docker run --rm -v ca-data:/ca x509-ca:latest \
   openssl verify -CAfile certs/ca-cert.pem certs/myserver.com-cert.pem
 ```
 
@@ -236,35 +238,38 @@ docker inspect --format='{{.State.Health.Status}}' <container-id>
 
 ## Integration with CI/CD
 
+The certificate-creation scripts are interactive and cannot run unattended, so
+CI is limited to building the image and checking that it is sound.
+
 ### GitLab CI Example
 
 ```yaml
-test-certificates:
-  image: x509-ca:latest
+build-ca-image:
+  image: docker:latest
+  services:
+    - docker:dind
   script:
-    - ./test-create-root-ca.sh
-    - ./test-create-server-cert.sh test.example.com
-    - openssl verify -CAfile certs/ca-cert.pem certs/test.example.com-cert.pem
+    - docker build -t x509-ca:latest .
+    - docker run --rm x509-ca:latest openssl version
+    - docker run --rm x509-ca:latest bash -c 'for s in *.sh; do bash -n "$s"; done'
 ```
 
 ### GitHub Actions Example
 
 ```yaml
-name: Test CA Scripts
+name: Build CA image
 on: [push]
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -t x509-ca:latest .
-      - name: Test scripts
-        run: |
-          docker run --rm x509-ca:latest bash -c "
-            ./test-create-root-ca.sh && \
-            ./test-create-server-cert.sh test.example.com
-          "
+      - name: Check OpenSSL
+        run: docker run --rm x509-ca:latest openssl version
+      - name: Check script syntax
+        run: docker run --rm x509-ca:latest bash -c 'for s in *.sh; do bash -n "$s"; done'
 ```
 
 ## Troubleshooting
@@ -274,6 +279,11 @@ jobs:
 # Use -it flag for interactive terminal
 docker run -it --rm x509-ca:latest
 ```
+
+### Scripts are missing inside the container
+You bind-mounted a host directory over `/ca`, which hides the image contents.
+Use a named volume, or mount the data subdirectories individually — see
+"Persistent Storage with Volumes" above.
 
 ### Permission denied errors
 ```bash

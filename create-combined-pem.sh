@@ -57,8 +57,15 @@ echo ""
 
 # Verify key and cert match first
 echo "Verifying private key matches certificate..."
-PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY" 2>/dev/null | openssl md5)
-CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE" 2>/dev/null | openssl md5)
+# Compare the raw moduli directly. Piping through `openssl md5` masked
+# failures: if both openssl calls failed they each hashed empty input to the
+# same digest, and the comparison reported a MATCH. Without the pipe, `set -e`
+# aborts on a failed extraction, and the passphrase prompt stays visible.
+if grep -q "ENCRYPTED" "$PRIVATE_KEY"; then
+    echo "(the private key is encrypted - you will be prompted for its passphrase)"
+fi
+PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY")
+CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE")
 
 if [ "$PRIVATE_MODULUS" != "$CERT_MODULUS" ]; then
     echo "✗ ERROR: Private key and certificate DO NOT MATCH!"
@@ -87,13 +94,13 @@ if [ -n "$CA_CERT" ]; then
 fi
 
 # Set appropriate permissions
-chmod 400 "$OUTPUT_FILE"
+chmod 600 "$OUTPUT_FILE"
 
 echo ""
 echo "=== Combined PEM File Created Successfully ==="
 echo ""
 echo "File: $OUTPUT_FILE"
-echo "Permissions: 400 (read-only for owner)"
+echo "Permissions: 600 (read/write for owner only)"
 echo ""
 echo "Contents:"
 if grep -q "ENCRYPTED" "$OUTPUT_FILE"; then
@@ -113,10 +120,11 @@ echo "  ssl_certificate $OUTPUT_FILE;"
 echo "  ssl_certificate_key $OUTPUT_FILE;"
 echo ""
 echo "Apache (httpd.conf):"
-echo "  SSLCertificateFile $OUTPUT_FILE"
+echo "  SSLCertificateFile    $OUTPUT_FILE"
+echo "  SSLCertificateKeyFile $OUTPUT_FILE"
 echo ""
 echo "Node.js (HTTPS server):"
-echo "  const options = {"
-echo "    pfx: fs.readFileSync('$OUTPUT_FILE')"
-echo "  };"
+echo "  // 'pfx' expects PKCS#12 - for a combined PEM use key/cert:"
+echo "  const pem = fs.readFileSync('$OUTPUT_FILE');"
+echo "  const options = { key: pem, cert: pem };"
 echo ""

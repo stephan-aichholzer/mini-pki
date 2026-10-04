@@ -15,6 +15,19 @@ else
     echo "✓ index.txt already exists"
 fi
 
+# Create CA database attributes file.
+# openssl defaults to "unique_subject = yes", which refuses to issue a second
+# certificate for a subject that is already in index.txt. This is a toolkit
+# for generating certificates, not a production CA registry, so re-running a
+# script for an existing name should work instead of failing with
+# "There is already a certificate for /CN=...".
+if [ ! -f index.txt.attr ]; then
+    echo "unique_subject = no" > index.txt.attr
+    echo "✓ Created index.txt.attr (unique_subject = no)"
+else
+    echo "✓ index.txt.attr already exists ($(tr -d '\n' < index.txt.attr))"
+fi
+
 # Create serial number file
 if [ ! -f serial ]; then
     echo 1000 > serial

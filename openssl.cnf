@@ -183,14 +183,6 @@ extendedKeyUsage = serverAuth, clientAuth, emailProtection
 # Extension for CRLs
 authorityKeyIdentifier=keyid:always
 
-[ ocsp ]
-# Extension for OCSP signing certificates
-basicConstraints = CA:FALSE
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer
-keyUsage = critical, digitalSignature
-extendedKeyUsage = critical, OCSPSigning
-
 #########################################
 # Subject Alternative Names (SAN)
 #########################################
