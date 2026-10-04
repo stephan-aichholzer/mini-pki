@@ -16,6 +16,8 @@ A comprehensive toolkit for managing a self-signed Certificate Authority (CA) an
 - 📝 **Interactive Prompts** - Full control over X.509 certificate details
 - 📦 **PKCS#12 Bundles** - Cross-platform distribution (.p12/.pfx)
 - 🔒 **AES-256 Encryption** - Password-protected private keys
+- 💳 **Smartcard CA Key** - Optionally keep the CA key on a PKCS#11 card
+  (tested with Thales IDPrime 940); it never leaves the card
 
 ## Quick Start
 
@@ -83,6 +85,8 @@ mini-pki/
 ├── newcerts/           # CA-managed certificate copies
 ├── crl/                # Certificate Revocation Lists
 ├── openssl.cnf         # OpenSSL configuration
+├── pki.conf            # CA key backend (file or card) and card settings
+├── lib/ca-key.sh       # Shared CA key handling used by the scripts
 ├── index.txt           # CA database
 ├── index.txt.attr      # CA database attributes
 ├── serial              # Certificate serial numbers
@@ -227,6 +231,9 @@ Import into Windows, macOS, browsers, or Java keystores.
 
 ## Certificate Revocation
 
+With a card-backed CA (see below), first run `. lib/ca-key.sh` and add
+`"${CA_SIGN_ARGS[@]}"` to both `openssl ca` commands.
+
 ```bash
 # Revoke a certificate
 openssl ca -config openssl.cnf -revoke certs/server.example.com-cert.pem
@@ -254,9 +261,54 @@ Available in `openssl.cnf`:
 | `v3_timestamp` | Time stamping certificates |
 | `v3_custom` | Custom capabilities |
 
+## Smartcard-Backed CA Key (PKCS#11)
+
+Instead of `private/ca-key.pem`, the CA private key can be generated on and
+used from a PKCS#11 smartcard. Signing happens on the card; the key is
+created *non-extractable* and cannot be copied. Tested with a
+**Thales IDPrime 940** using the SafeNet Authentication Client (SAC).
+
+### Requirements
+
+- PC/SC stack: `pcscd`, `libccid`, `opensc` (provides `pkcs11-tool`)
+- Vendor PKCS#11 module - for IDPrime: SafeNet Authentication Client
+  (`/usr/lib/libeTPkcs11.so`). OpenSC alone can use but not create keys.
+- OpenSSL 3 PKCS#11 provider: `apt install pkcs11-provider`, or build
+  [pkcs11-provider](https://github.com/openssl-projects/pkcs11-provider)
+  yourself and point `PKCS11_PROVIDER_DIR` at the directory holding `pkcs11.so`
+
+### Usage
+
+Select the backend in `pki.conf` (`CA_BACKEND=card`) or per command:
+
+```bash
+./init-ca-database.sh
+CA_BACKEND=card ./create-root-ca.sh          # generates RSA-4096 on the card (~2 min)
+CA_BACKEND=card ./create-server-cert.sh server.example.com
+```
+
+- The scripts ask for the **card PIN** wherever they asked for the CA
+  passphrase. Set `CARD_PIN` only for test cards.
+- `create-root-ca.sh` reuses an existing key with the configured label, and
+  stores the CA certificate on the card next to the key.
+- Leaf keys (server, client, code signing) stay software keys as before.
+- All settings (`PKCS11_MODULE`, `CARD_TOKEN`, `CARD_KEY_LABEL`, `CARD_KEY_ID`,
+  `CARD_KEY_TYPE`) live in `pki.conf` and can be overridden from the environment.
+
+### Notes for IDPrime cards
+
+- **New cards** ship with user PIN `0000` that *must* be changed first; logging
+  in fails with `CKR_PIN_EXPIRED`. Change it with SAC Tools. The factory admin
+  key (48 hex zeros) unblocks the PIN - change it too and keep it safe.
+- Use RSA keys: the scripts' key/certificate checks compare RSA moduli, and
+  SAC 10.9 offers ECC only on P-256.
+- Card mode is meant for the host. The Docker image has no PC/SC access unless
+  you pass the host's `pcscd` socket through.
+
 ## Security Best Practices
 
-1. **Protect CA Private Key** - Store `private/ca-key.pem` offline
+1. **Protect CA Private Key** - Store `private/ca-key.pem` offline, or keep
+   it on a smartcard (`CA_BACKEND=card`)
 2. **Strong Passphrases** - Use for CA and code signing keys
 3. **File Permissions** - Automatically set by scripts: `600` for private
    keys and bundles, `644` for certificates. These are deliberately writable
@@ -346,6 +398,7 @@ rm index.txt* serial* crlnumber*
 
 **Optional:**
 - Docker (for containerized usage)
+- PC/SC + PKCS#11 module + OpenSSL pkcs11-provider (for a smartcard CA key)
 
 ## Testing
 

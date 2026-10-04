@@ -26,7 +26,8 @@ RUN apk add --no-cache \
 WORKDIR /ca
 
 # Copy CA scripts and configuration
-COPY openssl.cnf ./
+COPY openssl.cnf pki.conf ./
+COPY lib/ ./lib/
 COPY create-*.sh init-ca-database.sh verify-key-cert-match.sh test-server-cert-openssl.sh ./
 COPY *.md ./
 

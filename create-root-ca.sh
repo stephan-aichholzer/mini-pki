@@ -1,12 +1,22 @@
 #!/bin/bash
 # Script to create a self-signed Root CA certificate
+#
+# CA_BACKEND=file (default): key in private/ca-key.pem, passphrase protected
+# CA_BACKEND=card:           key generated on a PKCS#11 smartcard (see pki.conf)
 
 set -e
 
-echo "=== Creating Root CA ==="
+. "$(dirname "$0")/lib/ca-key.sh"
+
+echo "=== Creating Root CA (backend: $CA_BACKEND) ==="
 echo ""
 echo "This script will:"
-echo "1. Generate a 4096-bit RSA private key (password protected)"
+if [ "$CA_BACKEND" = card ]; then
+    echo "1. Generate a $CARD_KEY_TYPE key pair on the card (label '$CARD_KEY_LABEL'),"
+    echo "   or reuse it if it already exists. The private key never leaves the card."
+else
+    echo "1. Generate a 4096-bit RSA private key (password protected)"
+fi
 echo "2. Create a self-signed root CA certificate valid for 10 years"
 echo ""
 
@@ -27,21 +37,38 @@ if [ -f private/ca-key.pem ] || [ -f certs/ca-cert.pem ]; then
     echo ""
 fi
 
-# Generate CA private key
 echo "Step 1: Generating CA private key..."
-echo "You will be prompted to enter a passphrase (min 4 characters)"
-openssl genrsa -aes256 -out private/ca-key.pem 4096
-chmod 600 private/ca-key.pem
+if [ "$CA_BACKEND" = card ]; then
+    [ -z "$CARD_PIN" ] && echo "You will be prompted for the card PIN (possibly more than once)"
+    if card_has_ca_key; then
+        echo "A key labelled '$CARD_KEY_LABEL' already exists on the card."
+        read -r -p "Reuse it for the new CA certificate? (Y/n): " REPLY
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            echo "Aborted. Delete the key with pkcs11-tool or choose another CARD_KEY_LABEL."
+            exit 1
+        fi
+    else
+        echo "Generating on the card - RSA-4096 takes about 2 minutes..."
+        card_tool --login --keypairgen --key-type "$CARD_KEY_TYPE" \
+            --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL"
+    fi
+    # A file key left over from file mode would be misleading
+    rm -f private/ca-key.pem
+else
+    echo "You will be prompted to enter a passphrase (min 4 characters)"
+    openssl genrsa -aes256 -out private/ca-key.pem 4096
+    chmod 600 private/ca-key.pem
+fi
 
 echo ""
 echo "Step 2: Creating self-signed root CA certificate..."
 echo "You will be prompted for:"
-echo "  - The passphrase you just created"
+echo "  - The $CA_SECRET_NAME"
 echo "  - Certificate details (Country, State, Organization, etc.)"
 echo ""
 
 openssl req -config openssl.cnf \
-      -key private/ca-key.pem \
+      "${CA_REQ_KEY_ARGS[@]}" \
       -new -x509 -days 3650 -sha256 -extensions v3_ca \
       -out certs/ca-cert.pem
 
@@ -60,11 +87,29 @@ if ! openssl verify -CAfile certs/ca-cert.pem certs/ca-cert.pem > /dev/null; the
 fi
 echo "✓ Verification passed: CA certificate is valid and self-signed"
 
+if [ "$CA_BACKEND" = card ]; then
+    # Store the certificate next to its key so the card is self-contained
+    echo ""
+    echo "Writing the CA certificate to the card..."
+    openssl x509 -in certs/ca-cert.pem -outform DER -out certs/ca-cert.der
+    # Replace, not add: a previous run may have stored an older CA certificate
+    card_tool --login --delete-object --type cert --label "$CARD_KEY_LABEL" \
+        > /dev/null 2>&1 || true
+    card_tool --login --write-object certs/ca-cert.der --type cert \
+        --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL" > /dev/null
+    rm -f certs/ca-cert.der
+    echo "✓ CA certificate stored on the card"
+fi
+
 echo ""
 echo "=== Root CA Created Successfully ==="
 echo ""
 echo "Files created:"
-echo "  Private Key: private/ca-key.pem (KEEP THIS SECURE!)"
+if [ "$CA_BACKEND" = card ]; then
+    echo "  Private Key: on the card ($CA_KEY_URI)"
+else
+    echo "  Private Key: private/ca-key.pem (KEEP THIS SECURE!)"
+fi
 echo "  Certificate: certs/ca-cert.pem"
 echo ""
 echo "To view the certificate:"

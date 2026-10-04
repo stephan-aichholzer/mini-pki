@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Smartcard-backed CA key via PKCS#11 (`CA_BACKEND=card` in `pki.conf`),
+  tested with Thales IDPrime 940 and SafeNet Authentication Client.
+  `create-root-ca.sh` generates (or reuses) the key on the card and stores the
+  CA certificate there; the signing scripts issue certificates with it through
+  the OpenSSL pkcs11-provider, prompting for the card PIN
+- `pki.conf` and `lib/ca-key.sh` hold the CA key backend settings shared by all
+  scripts; the default `file` backend behaves exactly as before
+- Dockerfile copies `pki.conf` and `lib/`, which the scripts now source
+
+### Added
 - PKCS#12 bundle script (`create-pkcs12-bundle.sh`) for cross-platform
   certificate distribution
 

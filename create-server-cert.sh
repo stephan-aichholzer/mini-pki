@@ -3,6 +3,8 @@
 
 set -e
 
+. "$(dirname "$0")/lib/ca-key.sh"
+
 if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <common-name> [dns-names...]"
     echo "Example: $0 server.example.com www.example.com api.example.com"
@@ -79,8 +81,9 @@ openssl req -config temp_server.cnf -key private/${BASENAME}-key.pem \
 
 # Sign with CA
 echo "Step 3: Signing certificate with CA..."
-echo "You will be prompted for the CA passphrase"
+echo "You will be prompted for the $CA_SECRET_NAME"
 openssl ca -config temp_server.cnf -extensions v3_server \
+    "${CA_SIGN_ARGS[@]}" \
     -days 375 -notext -md sha256 \
     -in certs/${BASENAME}.csr \
     -out certs/${BASENAME}-cert.pem

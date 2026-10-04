@@ -3,6 +3,8 @@
 
 set -e
 
+. "$(dirname "$0")/lib/ca-key.sh"
+
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 <signer-name>"
     echo "Example: $0 'John Doe' or $0 developer@example.com"
@@ -33,8 +35,9 @@ openssl req -config openssl.cnf -key private/${BASENAME}-key.pem \
 
 # Sign with CA
 echo "Step 3: Signing certificate with CA..."
-echo "You will be prompted for the CA passphrase"
+echo "You will be prompted for the $CA_SECRET_NAME"
 openssl ca -config openssl.cnf -extensions v3_code_signing \
+    "${CA_SIGN_ARGS[@]}" \
     -days 375 -notext -md sha256 \
     -in certs/${BASENAME}.csr \
     -out certs/${BASENAME}-cert.pem
