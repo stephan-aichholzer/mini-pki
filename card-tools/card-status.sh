@@ -94,6 +94,15 @@ if pkcs11-tool --module "$PKCS11_MODULE" "${TOKEN_ARGS[@]}" -O --type pubkey 2>/
 else
     info "key '$CARD_KEY_LABEL' not on the card yet - create-root-ca.sh will generate it"
 fi
+if [ -f "$DIR/ca-card.manifest" ]; then
+    WANT=$(sed -n 's/^token_serial=//p' "$DIR/ca-card.manifest")
+    HAVE=$(echo "$TOKEN_INFO" | sed -n 's/^ *serial num *: *//p' | head -1)
+    if [ "$WANT" = "$HAVE" ]; then
+        ok "inserted card is the one recorded in ca-card.manifest ($WANT)"
+    else
+        bad "ca-card.manifest names card $WANT, but card $HAVE is inserted"
+    fi
+fi
 if [ -f "$DIR/certs/ca-cert.pem" ]; then
     info "certs/ca-cert.pem: $(openssl x509 -in "$DIR/certs/ca-cert.pem" -noout -subject 2>/dev/null)"
 fi

@@ -101,6 +101,7 @@ mini-pki/
 ├── card-tools/         # Optional smartcard helpers (provider build, status, tree view, PIN)
 ├── docs/PIN_USAGE.md   # Which PIN protects which key on the card
 ├── index.txt           # CA database
+├── ca-card.manifest    # Which card holds the CA key (card mode)
 ├── index.txt.attr      # CA database attributes
 ├── serial              # Certificate serial numbers
 ├── crlnumber           # CRL numbers
@@ -418,6 +419,29 @@ locked. The issuing scripts also check that the CA key is on the card and
 that `certs/ca-cert.pem` belongs to it - so a wrong card or a wrong
 `CARD_KEY_LABEL` stops the script instead of producing certificates that do
 not verify.
+
+**Which card belongs to this CA?** `create-root-ca.sh` records the card in
+`ca-card.manifest` - serial number, model, key label/ID/type, public key and
+CA certificate fingerprints. Public information only, git-ignored like
+`index.txt`; keep it in the CA backup. It answers the question while the card
+is *not* inserted:
+
+```bash
+card-tools/card-manifest.sh
+```
+```
+=== CA card of this directory (ca-card.manifest) ===
+  CA             CN=Example Root CA,O=Example
+  card           Gemalto ID Prime MD
+  card serial    1178F12543E0C897
+  key            mini-pki-ca (ID 01, rsa:4096)
+
+No card inserted - insert card serial 1178F12543E0C897 to use this CA.
+```
+
+With a manifest, the pre-flight check also compares the card serial
+(*"wrong card: this CA belongs to card ..., card ... is inserted"*). For a CA
+created before manifests existed: `card-tools/card-manifest.sh --write`.
 For revocation and CRLs see [Certificate Revocation](#certificate-revocation).
 
 ### Step 7 - Inspect the card
@@ -452,6 +476,7 @@ CA signature differs from an eIDAS qualified signature:
 |---|---|
 | `card-tools/build-pkcs11-provider.sh` | Builds the OpenSSL pkcs11 provider into `card-tools/pkcs11-provider/` (portable, no system install) |
 | `card-tools/card-status.sh` | Read-only health check of the whole card setup (no PIN) |
+| `card-tools/card-manifest.sh [--write]` | Shows which card holds this CA's key (works without the card); `--write` records the inserted card |
 | `card-tools/card-tree.py [--login] [--slot N] [--mechanisms] [--module M]` | Tree view of the token: info, PIN status, memory, objects grouped by ID with key type/size, usage, access flags and decoded certificates. `--login` logs in to **one** slot only |
 | `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
 
@@ -469,6 +494,7 @@ to `card-tree.py` to see the card through OpenSC instead.
 | `CKR_DEVICE_MEMORY` on key generation, card not full | Key size not enabled on the card, e.g. `rsa:3072` - use `rsa:2048` or `rsa:4096` |
 | `pkcs11 provider not found` | Run `card-tools/build-pkcs11-provider.sh` (or `apt install pkcs11-provider`, or set `PKCS11_PROVIDER_DIR`) |
 | `certs/ca-cert.pem does not belong to key ...` | Wrong card, or `CARD_KEY_LABEL` differs from the one the CA was created with - keep the settings in `pki.conf` |
+| `wrong card: this CA belongs to card ...` | Insert the card named in `ca-card.manifest` (`card-tools/card-manifest.sh`) |
 | `CA key '...' is not on this card` / `card '...' not found` | Another card is inserted, or `CARD_KEY_LABEL` / `CARD_TOKEN` in `pki.conf` is wrong |
 | A second PIN slot shows up (OpenSC) | The IDPrime 940 *Digital Signature PIN* - not used by mini-pki. Logging in to it with the user PIN costs a try; `card-tree.py --login` only uses one slot |
 

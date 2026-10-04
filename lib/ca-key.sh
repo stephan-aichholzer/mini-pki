@@ -75,6 +75,74 @@ card_tool() {
         2> >(grep -v '^Using slot' >&2)
 }
 
+# Token info block (pkcs11-tool -T) of the configured card: the token named
+# CARD_TOKEN, or the first token if none is configured. -T lists every token
+# and ignores --token-label, hence the selection here. Empty if not found.
+card_token_info() {
+    pkcs11-tool --module "$PKCS11_MODULE" -T 2>/dev/null \
+        | awk -v want="$CARD_TOKEN" '
+            /^Slot/ { if (found) exit; block = "" }
+            { block = block $0 "\n" }
+            /token label/ { label = $0; sub(/^[^:]*: */, "", label)
+                            if (want == "" || label == want) found = 1 }
+            END { if (found) printf "%s", block }' || true
+}
+
+# One field ("serial num", "token label", ...) from card_token_info output
+token_field() {
+    echo "$1" | sed -n "s/^ *$2 *: *//p" | head -1
+}
+
+# SHA-256 of the CA public key (DER SubjectPublicKeyInfo) on the card
+card_pubkey_sha256() {
+    card_tool --read-object --type pubkey --label "$CARD_KEY_LABEL" 2>/dev/null \
+        | sha256sum | cut -d' ' -f1
+}
+
+# SHA-256 of the public key in certs/ca-cert.pem, same encoding as above
+cert_pubkey_sha256() {
+    openssl x509 -in certs/ca-cert.pem -pubkey -noout \
+        | openssl pkey -pubin -outform DER | sha256sum | cut -d' ' -f1
+}
+
+# ca-card.manifest records which card holds this directory's CA key, so the
+# card can be identified - and the right one found - while it is not
+# inserted. Public information only.
+CARD_MANIFEST=ca-card.manifest
+
+manifest_get() {
+    sed -n "s/^$1=//p" "$CARD_MANIFEST" 2>/dev/null | head -1
+}
+
+# Write ca-card.manifest from the inserted card and certs/ca-cert.pem
+write_card_manifest() {
+    local info
+    info=$(card_token_info)
+    cat > "$CARD_MANIFEST" <<MANIFEST
+# mini-pki CA card manifest - which card holds the CA key of this directory.
+# Written by create-root-ca.sh (or card-tools/card-manifest.sh --write) and
+# checked by the card pre-flight check. Public information only - no PINs,
+# no keys. Keep it with index.txt and serial in the CA backup.
+created=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+ca_subject=$(openssl x509 -in certs/ca-cert.pem -noout -subject -nameopt RFC2253 | sed 's/^subject=//')
+ca_not_after=$(openssl x509 -in certs/ca-cert.pem -noout -enddate | sed 's/^notAfter=//')
+ca_cert_sha256=$(openssl x509 -in certs/ca-cert.pem -noout -fingerprint -sha256 | sed 's/^.*=//')
+
+token_label=$(token_field "$info" "token label")
+token_serial=$(token_field "$info" "serial num")
+token_manufacturer=$(token_field "$info" "token manufacturer")
+token_model=$(token_field "$info" "token model")
+pkcs11_module=$PKCS11_MODULE
+
+key_label=$CARD_KEY_LABEL
+key_id=$CARD_KEY_ID
+key_type=$CARD_KEY_TYPE
+key_pubkey_sha256=$(card_pubkey_sha256)
+MANIFEST
+    chmod 644 "$CARD_MANIFEST"
+}
+
 # True if the CA key already exists on the card. The public key object is
 # visible without login, so this needs no PIN.
 card_has_ca_key() {
@@ -96,15 +164,7 @@ card_preflight() {
     if ! command -v pkcs11-tool > /dev/null; then
         preflight_fail "pkcs11-tool not found (install opensc)"
     fi
-    # -T lists every token and ignores --token-label, so pick ours out:
-    # the slot block of CARD_TOKEN, or the first token if none is configured
-    token_info=$(pkcs11-tool --module "$PKCS11_MODULE" -T 2>/dev/null \
-        | awk -v want="$CARD_TOKEN" '
-            /^Slot/ { if (found) exit; block = "" }
-            { block = block $0 "\n" }
-            /token label/ { label = $0; sub(/^[^:]*: */, "", label)
-                            if (want == "" || label == want) found = 1 }
-            END { if (found) printf "%s", block }') || true
+    token_info=$(card_token_info)
     if ! echo "$token_info" | grep -q "token label"; then
         if [ -n "$CARD_TOKEN" ]; then
             preflight_fail "card '$CARD_TOKEN' (CARD_TOKEN in pki.conf) not found" \
@@ -129,6 +189,21 @@ card_preflight() {
 
     [ "$mode" = issue ] || return 0
 
+    if [ -f "$CARD_MANIFEST" ]; then
+        local want_serial have_serial
+        want_serial=$(manifest_get token_serial)
+        have_serial=$(token_field "$token_info" "serial num")
+        if [ "$want_serial" != "$have_serial" ]; then
+            preflight_fail "wrong card: this CA belongs to card $want_serial, card $have_serial is inserted" \
+                "Expected: $(manifest_get token_model) '$(manifest_get token_label)', serial $want_serial" \
+                "(details: card-tools/card-manifest.sh)"
+        fi
+        if [ "$(manifest_get key_label)" != "$CARD_KEY_LABEL" ]; then
+            preflight_fail "CARD_KEY_LABEL is '$CARD_KEY_LABEL' but this CA uses key '$(manifest_get key_label)'" \
+                "Fix CARD_KEY_LABEL (and CARD_KEY_ID) in pki.conf"
+        fi
+        echo "  ✓ card serial $have_serial matches $CARD_MANIFEST"
+    fi
     if ! card_has_ca_key; then
         preflight_fail "CA key '$CARD_KEY_LABEL' is not on this card" \
             "Wrong card, or CARD_KEY_LABEL in pki.conf differs from the one used by create-root-ca.sh"
@@ -137,16 +212,17 @@ card_preflight() {
         preflight_fail "certs/ca-cert.pem not found - create the CA first (./create-root-ca.sh)"
     fi
     # Same SubjectPublicKeyInfo in the certificate and on the card?
-    card_key=$(card_tool --read-object --type pubkey --label "$CARD_KEY_LABEL" 2>/dev/null \
-        | sha256sum | cut -d' ' -f1)
-    cert_key=$(openssl x509 -in certs/ca-cert.pem -pubkey -noout \
-        | openssl pkey -pubin -outform DER | sha256sum | cut -d' ' -f1)
+    card_key=$(card_pubkey_sha256)
+    cert_key=$(cert_pubkey_sha256)
     if [ "$card_key" != "$cert_key" ]; then
         preflight_fail "certs/ca-cert.pem does not belong to key '$CARD_KEY_LABEL' on this card" \
             "Certificates signed now would not verify. Check CARD_KEY_LABEL in pki.conf" \
             "and that this is the right card for this CA directory."
     fi
     echo "  ✓ CA key '$CARD_KEY_LABEL' on the card matches certs/ca-cert.pem"
+    if [ ! -f "$CARD_MANIFEST" ]; then
+        echo "  ! no $CARD_MANIFEST yet - record this card with: card-tools/card-manifest.sh --write"
+    fi
 }
 
 preflight_fail() {

@@ -55,3 +55,6 @@ desktop.ini
 
 # Keep directory structure markers
 !.gitkeep
+
+# CA card manifest (instance data, like index.txt)
+ca-card.manifest

@@ -105,6 +105,10 @@ if [ "$CA_BACKEND" = card ]; then
         --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL" > /dev/null
     rm -f certs/ca-cert.der
     echo "✓ CA certificate stored on the card"
+
+    # Record which card this CA lives on, readable without the card
+    write_card_manifest
+    echo "✓ Card recorded in $CARD_MANIFEST (serial $(manifest_get token_serial))"
 fi
 
 echo ""
@@ -113,6 +117,7 @@ echo ""
 echo "Files created:"
 if [ "$CA_BACKEND" = card ]; then
     echo "  Private Key: on the card ($CA_KEY_URI)"
+    echo "  Card info:   $CARD_MANIFEST (which card holds the key - keep with the backup)"
 else
     echo "  Private Key: private/ca-key.pem (KEEP THIS SECURE!)"
 fi

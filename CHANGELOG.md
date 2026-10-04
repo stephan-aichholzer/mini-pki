@@ -27,6 +27,11 @@ All notable changes to this project will be documented in this file.
   inspect) with troubleshooting
 - `docs/PIN_USAGE.md`: which PIN protects which key on an IDPrime 940, and
   CA signatures vs. eIDAS qualified signatures
+- `ca-card.manifest`: `create-root-ca.sh` records which card holds the CA key
+  (serial, model, key label/ID/type, public key and CA certificate
+  fingerprints) - readable without the card via `card-tools/card-manifest.sh`,
+  which can also record a card for an existing CA (`--write`). The pre-flight
+  check uses it to name the right card when a wrong one is inserted
 - Card pre-flight check (`card_preflight` in `lib/ca-key.sh`) before the first
   prompt of every script in card mode: card present (and the configured
   `CARD_TOKEN`), user PIN not expired or locked; for issuing also the CA key
