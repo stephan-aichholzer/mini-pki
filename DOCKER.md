@@ -20,6 +20,11 @@ docker run -it --rm x509-ca:latest
 > X.509 subject fields and passphrases. Always run them with `-it`. They cannot
 > be run unattended.
 
+> **Smartcard CA keys:** card mode (`CA_BACKEND=card`) is meant for the host.
+> The image contains no PC/SC stack, vendor PKCS#11 module or pkcs11
+> provider, so use file mode inside the container - see the README section
+> "Smartcard-Backed CA Key".
+
 ## Image Details
 
 **Base Image:** Alpine Linux 3.24 (minimal)

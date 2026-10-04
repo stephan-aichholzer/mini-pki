@@ -104,7 +104,7 @@ Smartcard-backed CA key: the CA private key can now live on a PKCS#11 card
   scripts and `openssl.cnf` baked into the image
 - DOCKER.md now documents the single `/ca` volume the image actually declares,
   instead of four per-directory volumes
-- Corrected documented image size (~82 MB) and the stale `README.txt` reference
+- Corrected documented image size (~99 MB) and the stale `README.txt` reference
 - README examples now use the filenames the scripts actually generate
   (`<common-name>-key.pem` / `<common-name>-cert.pem`)
 - README License section now matches the MIT badge and LICENSE file
@@ -115,6 +115,9 @@ Smartcard-backed CA key: the CA private key can now live on a PKCS#11 card
 - Noted that server certificates always get `localhost`, `127.0.0.1`, and `::1`
   in the SAN
 - Noted the leftover `.csr` files in `certs/`
+- README directory overview matches the actual layout; backup, reset and
+  "files to protect" cover card mode and `ca-card.manifest`; DOCKER.md notes
+  that card mode is meant for the host
 
 ## [1.1.0] - 2025-11-14
 

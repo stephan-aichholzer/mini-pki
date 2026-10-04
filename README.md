@@ -56,6 +56,8 @@ can be re-issued for a name that already exists in the database.
 - Generates 4096-bit RSA key (password protected)
 - Creates self-signed root CA certificate (10-year validity)
 - Files: `private/ca-key.pem` (keep secure!), `certs/ca-cert.pem`
+- With `CA_BACKEND=card` the key is generated on a smartcard instead and never
+  touches the disk - see [Smartcard-Backed CA Key](#smartcard-backed-ca-key-pkcs11)
 
 ### 3. Create Certificates
 
@@ -91,39 +93,32 @@ can be re-issued for a name that already exists in the database.
 
 ```
 mini-pki/
-├── certs/              # Generated certificates
-├── private/            # Private keys (secure!)
-├── newcerts/           # CA-managed certificate copies
-├── crl/                # Certificate Revocation Lists
-├── openssl.cnf         # OpenSSL configuration
-├── pki.conf            # CA key backend (file or card) and card settings
-├── lib/ca-key.sh       # Shared CA key handling used by the scripts
-├── card-tools/         # Optional smartcard helpers (provider build, status, tree view, PIN)
-├── docs/PIN_USAGE.md   # Which PIN protects which key on the card
-├── index.txt           # CA database
-├── ca-card.manifest    # Which card holds the CA key (card mode)
-├── index.txt.attr      # CA database attributes
-├── serial              # Certificate serial numbers
-├── crlnumber           # CRL numbers
+├── init-ca-database.sh          # CA database setup
+├── create-root-ca.sh            # Root CA (file or card)
+├── create-server-cert.sh        # TLS server certificates
+├── create-client-cert.sh        # Client / mutual TLS certificates
+├── create-code-signing-cert.sh  # Code signing certificates
+├── create-pkcs12-bundle.sh      # .p12 bundles
+├── create-combined-pem.sh       # key + cert + chain in one PEM
+├── verify-key-cert-match.sh     # Key/certificate match check
+├── test-server-cert-openssl.sh  # TLS test with openssl s_server
+├── openssl.cnf                  # OpenSSL configuration and profiles
+├── pki.conf                     # CA key backend (file or card) and card settings
+├── lib/
+│   ├── ca-key.sh                # Shared CA key handling, card pre-flight check
+│   └── pkcs11-provider.sh       # Locates the OpenSSL pkcs11 provider
+├── card-tools/                  # Optional smartcard helpers (see Card tools)
+├── docs/PIN_USAGE.md            # Which PIN protects which key on the card
+├── README.md, DOCKER.md, CHANGELOG.md, LICENSE, Dockerfile
 │
-├── Scripts/
-│   ├── init-ca-database.sh
-│   ├── create-root-ca.sh
-│   ├── create-server-cert.sh
-│   ├── create-client-cert.sh
-│   ├── create-code-signing-cert.sh
-│   ├── verify-key-cert-match.sh
-│   ├── create-combined-pem.sh
-│   ├── create-pkcs12-bundle.sh
-│   └── test-server-cert-openssl.sh
-│
-├── Documentation/
-│   ├── README.md (this file)
-│   ├── DOCKER.md
-│   └── CHANGELOG.md
-│
-├── Dockerfile
-└── LICENSE
+│   Created at runtime (git-ignored):
+├── certs/                       # Certificates and CSRs
+├── private/                     # Private keys (secure!)
+├── newcerts/                    # Copies of every issued certificate
+├── crl/                         # Certificate Revocation Lists
+├── index.txt, index.txt.attr    # CA database
+├── serial, crlnumber            # Next serial / CRL number
+└── ca-card.manifest             # Which card holds the CA key (card mode)
 ```
 
 ## Docker Usage
@@ -505,12 +500,16 @@ you pass the host's `pcscd` socket through.
 
 1. **Protect CA Private Key** - Store `private/ca-key.pem` offline, or keep
    it on a smartcard (`CA_BACKEND=card`)
-2. **Strong Passphrases** - Use for CA and code signing keys
+2. **Strong Passphrases and PINs** - For the CA and code signing keys, and
+   the card PIN in card mode (change the factory PIN and admin key)
 3. **File Permissions** - Automatically set by scripts: `600` for private
    keys and bundles, `644` for certificates. These are deliberately writable
    by the owner so certificates can be regenerated in place — tighten a key to
    `400` once you move it into production
-4. **Regular Backups** - Back up entire directory
+4. **Regular Backups** - Back up the entire directory. In card mode the CA
+   key is only on the card, but `index.txt`, `serial`, `crlnumber`,
+   `newcerts/` and `ca-card.manifest` exist only on disk - without them you
+   cannot revoke certificates or keep serial numbers unique
 5. **Certificate Monitoring** - Track and revoke compromised certificates
 6. **Intermediate CAs** - Use for production environments
 7. **Certificate Rotation** - Rotate before expiration
@@ -571,9 +570,12 @@ Format: `Status | Expiry | Revocation | Serial | Filename | Subject`
 ### Reset CA
 
 ```bash
-rm index.txt* serial* crlnumber*
+rm -f index.txt* serial* crlnumber* ca-card.manifest
 ./init-ca-database.sh
 ```
+
+This only resets the database. A card-held CA key stays on the card and is
+reused by `create-root-ca.sh` unless you choose another `CARD_KEY_LABEL`.
 
 ## Files to Protect
 
@@ -585,6 +587,7 @@ rm index.txt* serial* crlnumber*
 **Safe to distribute:**
 - `certs/ca-cert.pem` - Root CA certificate
 - Issued public certificates (`certs/*-cert.pem`)
+- `ca-card.manifest` - card serial and fingerprints only (no PINs, no keys)
 
 ## Dependencies
 
@@ -602,7 +605,8 @@ Use the `test-server-cert-openssl.sh` script to validate certificates with OpenS
 
 ## Contributing
 
-This project is designed to be self-contained and production-ready. Contributions welcome for:
+This project is a self-contained toolkit for running a small CA and
+generating certificates. Contributions welcome for:
 - Additional certificate types
 - Enhanced security features
 - Better error handling
