@@ -284,6 +284,8 @@ Select the backend in `pki.conf` (`CA_BACKEND=card`) or per command:
 ```bash
 ./init-ca-database.sh
 CA_BACKEND=card ./create-root-ca.sh          # generates RSA-4096 on the card (~2 min)
+CA_BACKEND=card CARD_KEY_TYPE=EC:prime256v1 CARD_KEY_LABEL=mini-pki-ca-ec CARD_KEY_ID=02 \
+    ./create-root-ca.sh                      # or an ECC P-256 CA key (seconds)
 CA_BACKEND=card ./create-server-cert.sh server.example.com
 ```
 
@@ -300,8 +302,14 @@ CA_BACKEND=card ./create-server-cert.sh server.example.com
 - **New cards** ship with user PIN `0000` that *must* be changed first; logging
   in fails with `CKR_PIN_EXPIRED`. Change it with SAC Tools. The factory admin
   key (48 hex zeros) unblocks the PIN - change it too and keep it safe.
-- Use RSA keys: the scripts' key/certificate checks compare RSA moduli, and
-  SAC 10.9 offers ECC only on P-256.
+- **CA key type:** RSA (`rsa:2048` .. `rsa:4096`, default) or ECC P-256
+  (`CARD_KEY_TYPE=EC:prime256v1`). SAC 10.9 only offers P-256 (P-384 is refused).
+  P-256 generates in seconds, RSA-4096 takes about 2 minutes. An ECC CA can
+  issue certificates for the RSA leaf keys - mixing is fine.
+- Give each key on the card its own `CARD_KEY_LABEL` **and** `CARD_KEY_ID`;
+  the ID links key and certificate.
+- Leaf keys (server, client, code signing) remain RSA software keys: their
+  key/certificate checks compare RSA moduli.
 - Card mode is meant for the host. The Docker image has no PC/SC access unless
   you pass the host's `pcscd` socket through.
 

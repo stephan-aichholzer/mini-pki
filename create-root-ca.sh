@@ -48,7 +48,10 @@ if [ "$CA_BACKEND" = card ]; then
             exit 1
         fi
     else
-        echo "Generating on the card - RSA-4096 takes about 2 minutes..."
+        case "$CARD_KEY_TYPE" in
+            rsa:*|RSA:*) echo "Generating $CARD_KEY_TYPE on the card - RSA-4096 takes about 2 minutes..." ;;
+            *)           echo "Generating $CARD_KEY_TYPE on the card..." ;;
+        esac
         card_tool --login --keypairgen --key-type "$CARD_KEY_TYPE" \
             --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL"
     fi

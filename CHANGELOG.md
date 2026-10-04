@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
   `create-root-ca.sh` generates (or reuses) the key on the card and stores the
   CA certificate there; the signing scripts issue certificates with it through
   the OpenSSL pkcs11-provider, prompting for the card PIN
+- The card CA key can be RSA (default `rsa:4096`) or ECC P-256
+  (`CARD_KEY_TYPE=EC:prime256v1`); SAC 10.9 only offers P-256 (P-384 is refused)
 - `pki.conf` and `lib/ca-key.sh` hold the CA key backend settings shared by all
   scripts; the default `file` backend behaves exactly as before
 - Dockerfile copies `pki.conf` and `lib/`, which the scripts now source
