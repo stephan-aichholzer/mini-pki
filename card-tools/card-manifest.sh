@@ -10,10 +10,37 @@
 
 set -e
 cd "$(dirname "$0")/.."
+
+usage() {
+    cat <<EOF
+Usage: $0 [--write] [-h | --help]
+
+Shows which smartcard holds this directory's CA key, from ca-card.manifest -
+also when no card is inserted. With a card inserted, it also says whether it
+is the right one.
+
+  --write   (re)create ca-card.manifest from the inserted card, e.g. for a CA
+            created before manifests existed. Refuses if the card's key
+            CARD_KEY_LABEL does not match certs/ca-cert.pem.
+
+The manifest holds public information only (card serial, model, key label,
+ID, type and fingerprints). create-root-ca.sh writes it in card mode.
+EOF
+}
+
+. lib/cli.sh
+WRITE=0
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) usage; exit 0 ;;
+        --write)   WRITE=1 ;;
+        *)         cli_error "unknown argument $arg" ;;
+    esac
+done
 # Only pkcs11-tool and openssl are needed here, not the OpenSSL provider
 CA_BACKEND=file . lib/ca-key.sh
 
-if [ "$1" = "--write" ]; then
+if [ "$WRITE" = 1 ]; then
     [ -f certs/ca-cert.pem ] || { echo "certs/ca-cert.pem not found"; exit 1; }
     info=$(card_token_info)
     [ -n "$info" ] || { echo "No card found - insert the CA card first"; exit 1; }

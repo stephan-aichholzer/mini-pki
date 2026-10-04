@@ -3,11 +3,44 @@
 
 set -e
 
+usage() {
+    cat <<EOF
+Usage: $0 [--card | --file] <common-name> [dns-name ...]
+
+Creates a TLS server certificate signed by the CA: profile v3_server
+(serverAuth; digitalSignature, keyEncipherment), valid 375 days, with a new
+2048-bit RSA key.
+
+  <common-name>   the server's DNS name - first SAN entry and file name
+  [dns-name ...]  more DNS names for the SAN
+                  (localhost, 127.0.0.1 and ::1 are always added)
+
+Asks whether to protect the new key with a passphrase, prompts for the
+subject (enter <common-name> as Common Name) and for the CA passphrase or
+card PIN. In card mode a pre-flight check verifies card and CA key first.
+
+EOF
+    backend_help
+    cat <<EOF
+Creates:
+  private/<name>-key.pem   server private key
+  certs/<name>.csr         signing request (can be deleted afterwards)
+  certs/<name>-cert.pem    server certificate
+
+Examples:
+  $0 server.example.com www.example.com api.example.com
+  $0 --card intranet.example.com
+EOF
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+CLI_BACKEND_OPTS=1
+parse_cli "$@"
+set -- "${ARGS[@]}"
 . "$(dirname "$0")/lib/ca-key.sh"
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <common-name> [dns-names...]"
-    echo "Example: $0 server.example.com www.example.com api.example.com"
+    usage >&2
     exit 1
 fi
 

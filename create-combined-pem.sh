@@ -1,10 +1,11 @@
 #!/bin/bash
 # Script to create a combined PEM file for server applications
 # Combines private key + certificate + CA chain into a single file
+# Run with --help for usage.
 
 set -e
 
-if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+usage() {
     echo "Usage: $0 <private-key.pem> <certificate.pem> [ca-cert.pem]"
     echo ""
     echo "Example:"
@@ -16,6 +17,14 @@ if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
     echo "  3. CA certificate (optional, for chain verification)"
     echo ""
     echo "Output: certs/<basename>-combined.pem"
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+parse_cli "$@"
+set -- "${ARGS[@]}"
+
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    usage >&2
     exit 1
 fi
 

@@ -8,6 +8,10 @@
 PKI_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=../pki.conf
 . "$PKI_DIR/pki.conf"
+# --card / --file on the command line (lib/cli.sh) win over pki.conf
+if [ -n "${CLI_CA_BACKEND:-}" ]; then
+    CA_BACKEND=$CLI_CA_BACKEND
+fi
 . "$PKI_DIR/lib/pkcs11-provider.sh"
 
 case "$CA_BACKEND" in

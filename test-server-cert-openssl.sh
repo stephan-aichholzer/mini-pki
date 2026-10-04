@@ -1,10 +1,11 @@
 #!/bin/bash
 # Script to test server certificate with OpenSSL before using in application
 # This helps verify the certificate is properly configured for TLS/SSL
+# Run with --help for usage.
 
 set -e
 
-if [ "$#" -ne 2 ]; then
+usage() {
     echo "Usage: $0 <private-key.pem> <certificate.pem>"
     echo ""
     echo "Example:"
@@ -14,6 +15,14 @@ if [ "$#" -ne 2 ]; then
     echo "  1. Verify key and certificate match"
     echo "  2. Display certificate details"
     echo "  3. Test with OpenSSL s_server"
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+parse_cli "$@"
+set -- "${ARGS[@]}"
+
+if [ "$#" -ne 2 ]; then
+    usage >&2
     exit 1
 fi
 

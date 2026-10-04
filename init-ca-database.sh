@@ -4,6 +4,31 @@
 
 set -e
 
+usage() {
+    cat <<EOF
+Usage: $0 [--card | --file] [-h | --help]
+
+Creates the CA database that 'openssl ca' needs. Existing files are kept,
+so running it again is harmless. In card mode it first checks that the card
+is present and its PIN is neither expired nor locked (read-only, no PIN).
+
+EOF
+    backend_help
+    cat <<EOF
+Creates (if missing):
+  index.txt          register of issued certificates
+  index.txt.attr     unique_subject = no (a name may be issued again)
+  serial             next certificate serial number (starts at 1000)
+  crlnumber          next CRL number (starts at 1000)
+
+Next step: ./create-root-ca.sh
+EOF
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+CLI_BACKEND_OPTS=1
+parse_cli "$@"
+set -- "${ARGS[@]}"
 . "$(dirname "$0")/lib/ca-key.sh"
 
 echo "=== Initializing CA Database ==="

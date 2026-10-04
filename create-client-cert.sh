@@ -3,11 +3,43 @@
 
 set -e
 
+usage() {
+    cat <<EOF
+Usage: $0 [--card | --file] <client-name>
+
+Creates a client certificate for mutual TLS and e-mail signing, signed by
+the CA: profile v3_client (clientAuth, emailProtection; digitalSignature,
+nonRepudiation, keyEncipherment), valid 375 days, with a new 2048-bit RSA key.
+
+  <client-name>   name of the client or user - also used for the file names
+
+Asks whether to protect the new key with a passphrase, prompts for the
+subject (enter <client-name> as Common Name) and for the CA passphrase or
+card PIN. In card mode a pre-flight check verifies card and CA key first.
+
+EOF
+    backend_help
+    cat <<EOF
+Creates:
+  private/<name>-key.pem   client private key
+  certs/<name>.csr         signing request (can be deleted afterwards)
+  certs/<name>-cert.pem    client certificate
+
+Examples:
+  $0 alice@example.com
+  $0 --card device-0042
+Bundle for browsers / OS import: ./create-pkcs12-bundle.sh --help
+EOF
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+CLI_BACKEND_OPTS=1
+parse_cli "$@"
+set -- "${ARGS[@]}"
 . "$(dirname "$0")/lib/ca-key.sh"
 
 if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <client-name>"
-    echo "Example: $0 client1.example.com"
+    usage >&2
     exit 1
 fi
 

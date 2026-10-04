@@ -14,6 +14,27 @@
 set -e
 
 VERSION=1.3.0
+
+usage() {
+    cat <<EOF
+Usage: $0 [-h | --help]
+
+Builds the OpenSSL 3 pkcs11 provider (pkcs11-provider $VERSION) locally - nothing
+is installed system-wide. Downloads the release, checks its pinned SHA-256,
+compiles it (meson and ninja go into card-tools/.venv) and checks that OpenSSL
+can load the result. Run it again to rebuild.
+
+Creates:
+  card-tools/pkcs11-provider/pkcs11.so   found automatically by the scripts
+  card-tools/build/                      download and build logs
+
+Needs: curl, tar, a C compiler, pkg-config, OpenSSL >= 3.0.7 headers
+  Debian/Ubuntu: sudo apt install build-essential pkg-config libssl-dev python3-venv curl
+EOF
+}
+
+. "$(dirname "$0")/../lib/cli.sh"
+parse_cli "$@"
 # SHA-256 of the release tarball this project was tested with. The upstream
 # release publishes no checksum file, so it is pinned here.
 SHA256=b8bbc30cfb7865603fff1dd0fb516cce90437d8ddb267e331cd89d6121960538

@@ -3,9 +3,46 @@
 #
 # CA_BACKEND=file (default): key in private/ca-key.pem, passphrase protected
 # CA_BACKEND=card:           key generated on a PKCS#11 smartcard (see pki.conf)
+# Run with --help for usage.
 
 set -e
 
+usage() {
+    cat <<EOF
+Usage: $0 [--card | --file] [-h | --help]
+
+Creates the self-signed root CA certificate (10 years, profile v3_ca).
+
+  file mode   generates a 4096-bit RSA key in private/ca-key.pem, protected
+              with a passphrase (AES-256) that you choose
+  card mode   generates CARD_KEY_TYPE (default rsa:4096) on the smartcard under
+              CARD_KEY_LABEL - or reuses a key with that label - and lets the
+              card self-sign the certificate; the certificate is also stored on
+              the card and the card is recorded in ca-card.manifest
+
+Prompts for the CA passphrase or card PIN and the certificate subject
+(Country ... Common Name). An existing CA is only replaced after typing
+'replace'. Run ./init-ca-database.sh first.
+
+EOF
+    backend_help
+    cat <<EOF
+Creates:
+  certs/ca-cert.pem      CA certificate (give this to clients)
+  private/ca-key.pem     CA private key          (file mode)
+  ca-card.manifest       which card holds the key (card mode)
+
+Examples:
+  $0             backend from pki.conf
+  $0 --card      CA key on the smartcard
+  $0 --file      CA key as passphrase-protected file
+EOF
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+CLI_BACKEND_OPTS=1
+parse_cli "$@"
+set -- "${ARGS[@]}"
 . "$(dirname "$0")/lib/ca-key.sh"
 
 echo "=== Creating Root CA (backend: $CA_BACKEND) ==="

@@ -1,10 +1,11 @@
 #!/bin/bash
 # Script to create a PKCS#12 bundle (.p12/.pfx) for cross-platform certificate distribution
 # Bundles private key + certificate + CA chain into a single encrypted file
+# Run with --help for usage.
 
 set -e
 
-if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+usage() {
     echo "Usage: $0 <private-key.pem> <certificate.pem> [ca-cert.pem]"
     echo ""
     echo "Example:"
@@ -22,6 +23,14 @@ if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
     echo "  - Browser client certificate import"
     echo "  - Java keystore import"
     echo "  - Cross-platform certificate distribution"
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+parse_cli "$@"
+set -- "${ARGS[@]}"
+
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    usage >&2
     exit 1
 fi
 

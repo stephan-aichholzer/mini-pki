@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `--help` / `-h` for every shell script: arguments, options, created files
+  and examples. Unknown options are rejected with a pointer to `--help`
+- `--card` / `--file` on `init-ca-database.sh`, `create-root-ca.sh` and the
+  issuing scripts select the CA key backend for one run, overriding
+  `CA_BACKEND` from `pki.conf` and the environment
+- `lib/cli.sh`: shared option parsing for the scripts
+
 ## [1.2.0] - 2026-10-04
 
 Smartcard-backed CA key: the CA private key can now live on a PKCS#11 card

@@ -32,6 +32,9 @@ Everything runs from this directory - nothing is installed system-wide. For
 a CA key on a smartcard, also follow
 [Smartcard-Backed CA Key](#smartcard-backed-ca-key-pkcs11).
 
+Every script explains itself: `./<script>.sh --help` (or `-h`) shows its
+arguments, options, the files it creates and examples.
+
 > **Run all scripts from the repository root.** `openssl.cnf` resolves the CA
 > directories relative to the current directory (`dir = .`), so running a
 > script from anywhere else writes the database and certificates to the wrong
@@ -56,8 +59,9 @@ can be re-issued for a name that already exists in the database.
 - Generates 4096-bit RSA key (password protected)
 - Creates self-signed root CA certificate (10-year validity)
 - Files: `private/ca-key.pem` (keep secure!), `certs/ca-cert.pem`
-- With `CA_BACKEND=card` the key is generated on a smartcard instead and never
-  touches the disk - see [Smartcard-Backed CA Key](#smartcard-backed-ca-key-pkcs11)
+- With `--card` (or `CA_BACKEND=card` in `pki.conf`) the key is generated on a
+  smartcard instead and never touches the disk - see
+  [Smartcard-Backed CA Key](#smartcard-backed-ca-key-pkcs11)
 
 ### 3. Create Certificates
 
@@ -106,6 +110,7 @@ mini-pki/
 ├── pki.conf                     # CA key backend (file or card) and card settings
 ├── lib/
 │   ├── ca-key.sh                # Shared CA key handling, card pre-flight check
+│   ├── cli.sh                   # Shared --help / --card / --file option parsing
 │   └── pkcs11-provider.sh       # Locates the OpenSSL pkcs11 provider
 ├── card-tools/                  # Optional smartcard helpers (see Card tools)
 ├── docs/PIN_USAGE.md            # Which PIN protects which key on the card
@@ -373,6 +378,11 @@ CARD_KEY_ID=02
   the ID links a key to its certificate.
 - `CARD_TOKEN` (the token label) is only needed when more than one token is
   connected. `CARD_PIN` lets scripts run without prompting - test cards only.
+- **Per run:** `--card` or `--file` on `init-ca-database.sh`,
+  `create-root-ca.sh` and the issuing scripts overrides `CA_BACKEND` from
+  `pki.conf` and the environment for that call, e.g.
+  `./create-root-ca.sh --card`. The other card settings still come from
+  `pki.conf`.
 
 ### Step 5 - Create the root CA
 

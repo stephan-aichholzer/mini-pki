@@ -5,7 +5,27 @@
 #
 # Usage (from the repository root): card-tools/card-status.sh
 
+usage() {
+    cat <<EOF
+Usage: $0 [-h | --help]
+
+Read-only health check of everything card mode needs - never logs in, so no
+PIN tries are used:
+
+  PC/SC        pcscd running, reader present
+  Card         answers (ATR), card type
+  Modules      vendor PKCS#11 module (PKCS11_MODULE in pki.conf), OpenSC
+  Provider     OpenSSL pkcs11 provider (local build or system)
+  Token        label, serial, PIN state, remaining tries per PIN
+  CA key       key CARD_KEY_LABEL on the card, card matches ca-card.manifest
+
+Exit status 0 when all checks pass, 1 otherwise.
+EOF
+}
+
 DIR=$(cd "$(dirname "$0")/.." && pwd)
+. "$DIR/lib/cli.sh"
+parse_cli "$@"
 PKI_DIR=$DIR
 # shellcheck source=../pki.conf
 . "$DIR/pki.conf"

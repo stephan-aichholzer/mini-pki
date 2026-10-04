@@ -1,10 +1,11 @@
 #!/bin/bash
 # Script to verify that a private key matches its certificate
 # This helps diagnose "key values mismatch" errors
+# Run with --help for usage.
 
 set -e
 
-if [ "$#" -ne 2 ]; then
+usage() {
     echo "Usage: $0 <private-key.pem> <certificate.pem>"
     echo ""
     echo "Example:"
@@ -14,6 +15,14 @@ if [ "$#" -ne 2 ]; then
     echo "  1. Extract the public key from the private key"
     echo "  2. Extract the public key from the certificate"
     echo "  3. Compare them to verify they match"
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+parse_cli "$@"
+set -- "${ARGS[@]}"
+
+if [ "$#" -ne 2 ]; then
+    usage >&2
     exit 1
 fi
 

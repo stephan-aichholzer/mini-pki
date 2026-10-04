@@ -3,11 +3,42 @@
 
 set -e
 
+usage() {
+    cat <<EOF
+Usage: $0 [--card | --file] <signer-name>
+
+Creates a code signing certificate signed by the CA: profile v3_code_signing
+(codeSigning; digitalSignature), valid 375 days, with a new 2048-bit RSA key
+that is always passphrase-protected.
+
+  <signer-name>   person, team or build system - also used for the file names
+
+Prompts for the key passphrase, the subject (enter <signer-name> as Common
+Name) and the CA passphrase or card PIN. In card mode a pre-flight check
+verifies card and CA key first.
+
+EOF
+    backend_help
+    cat <<EOF
+Creates:
+  private/<name>-key.pem   signing key (passphrase-protected)
+  certs/<name>.csr         signing request (can be deleted afterwards)
+  certs/<name>-cert.pem    code signing certificate
+
+Examples:
+  $0 "Jane Developer"
+  $0 --card build-bot
+EOF
+}
+
+. "$(dirname "$0")/lib/cli.sh"
+CLI_BACKEND_OPTS=1
+parse_cli "$@"
+set -- "${ARGS[@]}"
 . "$(dirname "$0")/lib/ca-key.sh"
 
 if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <signer-name>"
-    echo "Example: $0 'John Doe' or $0 developer@example.com"
+    usage >&2
     exit 1
 fi
 
