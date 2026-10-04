@@ -12,6 +12,14 @@ All notable changes to this project will be documented in this file.
   the OpenSSL pkcs11-provider, prompting for the card PIN
 - The card CA key can be RSA (default `rsa:4096`) or ECC P-256
   (`CARD_KEY_TYPE=EC:prime256v1`); SAC 10.9 only offers P-256 (P-384 is refused)
+- `card-tools/`: optional helpers for card mode - `card-status.sh` (read-only
+  health check), `card-tree.py` (tree view of keys and certificates on the
+  card) and `card-set-expired-pin.py` (changes the expired factory PIN,
+  which `pkcs11-tool --change-pin` cannot)
+- `card-tools/build-pkcs11-provider.sh` builds the OpenSSL pkcs11 provider
+  locally into `card-tools/pkcs11-provider/` (download, SHA-256 check,
+  compile, load test); `lib/pkcs11-provider.sh` finds it automatically, with
+  `PKCS11_PROVIDER_DIR` and the system provider as alternatives
 - `pki.conf` and `lib/ca-key.sh` hold the CA key backend settings shared by all
   scripts; the default `file` backend behaves exactly as before
 - Dockerfile copies `pki.conf` and `lib/`, which the scripts now source

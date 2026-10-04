@@ -71,3 +71,10 @@ desktop.ini
 *pass*.txt
 *password*.txt
 *secret*.txt
+
+# Python venv for the optional card tools
+card-tools/.venv/
+__pycache__/
+# Locally built pkcs11 provider (card-tools/build-pkcs11-provider.sh)
+card-tools/build/
+card-tools/pkcs11-provider/

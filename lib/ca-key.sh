@@ -8,6 +8,7 @@
 PKI_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=../pki.conf
 . "$PKI_DIR/pki.conf"
+. "$PKI_DIR/lib/pkcs11-provider.sh"
 
 case "$CA_BACKEND" in
 file)
@@ -20,17 +21,15 @@ card)
     # The provider reads the vendor module path from this variable
     export PKCS11_PROVIDER_MODULE="$PKCS11_MODULE"
 
+    resolve_pkcs11_provider
     CA_PROVIDER_ARGS=()
-    if [ -n "$PKCS11_PROVIDER_DIR" ]; then
-        CA_PROVIDER_ARGS+=(-provider-path "$PKCS11_PROVIDER_DIR")
-        PROVIDER_SO="$PKCS11_PROVIDER_DIR/pkcs11.so"
-    else
-        PROVIDER_SO="$(openssl version -m | sed 's/^MODULESDIR: "\(.*\)"$/\1/')/pkcs11.so"
+    if [ -n "$PROVIDER_DIR" ]; then
+        CA_PROVIDER_ARGS+=(-provider-path "$PROVIDER_DIR")
     fi
     if [ ! -f "$PROVIDER_SO" ]; then
         echo "Error: OpenSSL pkcs11 provider not found ($PROVIDER_SO)." >&2
-        echo "       Install it (apt install pkcs11-provider) or set PKCS11_PROVIDER_DIR" >&2
-        echo "       in pki.conf to the directory containing pkcs11.so." >&2
+        echo "       Build it locally: card-tools/build-pkcs11-provider.sh" >&2
+        echo "       (or apt install pkcs11-provider, or set PKCS11_PROVIDER_DIR in pki.conf)" >&2
         exit 1
     fi
     if [ ! -f "$PKCS11_MODULE" ]; then
