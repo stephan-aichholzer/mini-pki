@@ -63,20 +63,25 @@ echo ""
 
 # Verify key and cert match first
 echo "Verifying private key matches certificate..."
-PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY" 2>/dev/null | openssl md5)
-if [ $? -ne 0 ]; then
-    echo "✗ ERROR: Failed to read private key"
-    echo "         If the key is encrypted, you'll be prompted for the passphrase during bundle creation"
-    # Don't exit, let openssl pkcs12 handle the passphrase prompt
-else
-    CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE" 2>/dev/null | openssl md5)
-    if [ "$PRIVATE_MODULUS" != "$CERT_MODULUS" ]; then
-        echo "✗ ERROR: Private key and certificate DO NOT MATCH!"
-        echo "         Cannot create PKCS#12 bundle."
-        exit 1
-    fi
-    echo "✓ Private key and certificate match"
+# Compare the raw moduli directly. Piping through `openssl md5` masked
+# failures: if both openssl calls failed they each hashed empty input to the
+# same digest, and the comparison reported a MATCH. Without the pipe, `set -e`
+# aborts on a failed extraction, and the passphrase prompt stays visible.
+# The previous `else` branch here was dead code: `set -e` aborted the script
+# before it could be reached. The key passphrase is needed for the bundle
+# anyway, so prompt for it up front and verify properly.
+if grep -q "ENCRYPTED" "$PRIVATE_KEY"; then
+    echo "(the private key is encrypted - you will be prompted for its passphrase)"
 fi
+PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY")
+CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE")
+
+if [ "$PRIVATE_MODULUS" != "$CERT_MODULUS" ]; then
+    echo "✗ ERROR: Private key and certificate DO NOT MATCH!"
+    echo "         Cannot create PKCS#12 bundle."
+    exit 1
+fi
+echo "✓ Private key and certificate match"
 echo ""
 
 # Get friendly name for the certificate
@@ -119,13 +124,13 @@ if [ $? -ne 0 ]; then
 fi
 
 # Set appropriate permissions
-chmod 400 "$OUTPUT_FILE"
+chmod 600 "$OUTPUT_FILE"
 
 echo ""
 echo "=== PKCS#12 Bundle Created Successfully ==="
 echo ""
 echo "File: $OUTPUT_FILE"
-echo "Permissions: 400 (read-only for owner)"
+echo "Permissions: 600 (read/write for owner only)"
 echo "Friendly Name: $FRIENDLY_NAME"
 echo ""
 echo "To verify the bundle contents:"

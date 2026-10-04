@@ -43,10 +43,14 @@ if grep -q "ENCRYPTED" "$PRIVATE_KEY"; then
     echo ""
 fi
 
-# Extract modulus from private key
+# Compare the raw moduli directly. Piping through `openssl md5` masked
+# failures: if both openssl calls failed they each hashed empty input to the
+# same digest, and the comparison reported a MATCH. Without the pipe, `set -e`
+# aborts on a failed extraction, and the passphrase prompt stays visible.
+# The `if [ $? -ne 0 ]` guards that used to follow these assignments were
+# unreachable: `set -e` already aborts on a failed assignment.
 echo "Extracting modulus from private key..."
-PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY" 2>/dev/null | openssl md5)
-if [ $? -ne 0 ]; then
+if ! PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY"); then
     echo "Error: Failed to extract modulus from private key"
     echo "       This could be due to:"
     echo "       - Incorrect passphrase"
@@ -55,19 +59,17 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Extract modulus from certificate
 echo "Extracting modulus from certificate..."
-CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE" 2>/dev/null | openssl md5)
-if [ $? -ne 0 ]; then
+if ! CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE"); then
     echo "Error: Failed to extract modulus from certificate"
     echo "       The certificate file may be corrupted or invalid"
     exit 1
 fi
 
-# Compare
+# Compare (digests shown for readability; the comparison uses the full moduli)
 echo ""
-echo "Private Key Modulus: $PRIVATE_MODULUS"
-echo "Certificate Modulus: $CERT_MODULUS"
+echo "Private Key Modulus:  $(printf '%s' "$PRIVATE_MODULUS" | openssl md5)"
+echo "Certificate Modulus:  $(printf '%s' "$CERT_MODULUS" | openssl md5)"
 echo ""
 
 if [ "$PRIVATE_MODULUS" = "$CERT_MODULUS" ]; then

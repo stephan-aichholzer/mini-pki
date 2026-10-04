@@ -28,8 +28,6 @@ crlnumber.old
 *.attr
 
 # Test and temporary files
-TEST-RESULTS.txt
-SCRIPT-TEST-RESULTS.txt
 test-file.*
 *.sig
 temp_*.cnf
@@ -57,3 +55,6 @@ desktop.ini
 
 # Keep directory structure markers
 !.gitkeep
+
+# CA card manifest (instance data, like index.txt)
+ca-card.manifest

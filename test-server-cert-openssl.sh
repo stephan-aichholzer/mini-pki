@@ -39,8 +39,15 @@ echo ""
 
 # Step 1: Verify key and certificate match
 echo "Step 1: Verifying private key matches certificate..."
-PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY" 2>/dev/null | openssl md5)
-CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE" 2>/dev/null | openssl md5)
+# Compare the raw moduli directly. Piping through `openssl md5` masked
+# failures: if both openssl calls failed they each hashed empty input to the
+# same digest, and the comparison reported a MATCH. Without the pipe, `set -e`
+# aborts on a failed extraction, and the passphrase prompt stays visible.
+if grep -q "ENCRYPTED" "$PRIVATE_KEY"; then
+    echo "(the private key is encrypted - you will be prompted for its passphrase)"
+fi
+PRIVATE_MODULUS=$(openssl rsa -noout -modulus -in "$PRIVATE_KEY")
+CERT_MODULUS=$(openssl x509 -noout -modulus -in "$CERTIFICATE")
 
 if [ "$PRIVATE_MODULUS" != "$CERT_MODULUS" ]; then
     echo "✗ FAILED: Private key and certificate DO NOT MATCH!"
@@ -88,8 +95,16 @@ echo "Or test with curl:"
 echo "  curl -k https://localhost:4433"
 echo ""
 
-# Check if port is already in use
-if lsof -Pi :4433 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+# Check if port is already in use.
+# Uses bash's /dev/tcp rather than lsof, which is not installed in the
+# Docker image (or on many minimal hosts).
+port_in_use() {
+    (exec 3<>/dev/tcp/127.0.0.1/"$1") 2>/dev/null || return 1
+    exec 3<&- 3>&-
+    return 0
+}
+
+if port_in_use 4433; then
     echo "Warning: Port 4433 is already in use. Trying port 4434..."
     PORT=4434
 else
