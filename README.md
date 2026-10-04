@@ -484,10 +484,26 @@ CA signature differs from an eIDAS qualified signature:
 | `card-tools/card-manifest.sh [--write]` | Shows which card holds this CA's key (works without the card); `--write` records the inserted card |
 | `card-tools/card-tree.py [--login] [--slot N] [--mechanisms] [--module M]` | Tree view of the token: info, PIN status, memory, objects grouped by ID with key type/size, usage, access flags and decoded certificates. `--login` logs in to **one** slot only |
 | `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
+| `card-tools/card-wipe.py --objects \| --factory [--dry-run]` | Erases the card. `--objects` deletes all keys and certificates with the user PIN (admin key untouched); `--factory` re-initializes the token with the admin key and sets a new user PIN. Shows the card first, warns if it holds this directory's CA key, and only proceeds after you **type the card serial**. Refuses `--factory` if the card reports earlier wrong admin key attempts |
 
 The Python tools need `card-tools/.venv` (step 1) and use `$PKCS11_MODULE`
 (default: SAC). Pass `--module /usr/lib/x86_64-linux-gnu/opensc-pkcs11.so`
 to `card-tree.py` to see the card through OpenSC instead.
+
+**Erasing a card for reuse:**
+
+```bash
+card-tools/.venv/bin/python card-tools/card-wipe.py --objects --dry-run   # look first
+card-tools/.venv/bin/python card-tools/card-wipe.py --factory             # full reset
+```
+
+`--factory` uses the admin key exactly once and never retries - a locked admin
+key makes an IDPrime 940 permanently unusable. It never changes the admin key.
+In SAC's default unlinked mode the Digital Signature PIN/PUK stay as they are.
+
+Sources behind the card mode (Thales manuals, product briefs, OpenSC code,
+PKCS#11 and eIDAS) and what was measured on a real card:
+[card-tools/REFERENCE.md](card-tools/REFERENCE.md).
 
 ### Card troubleshooting
 

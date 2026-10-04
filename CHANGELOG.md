@@ -11,6 +11,14 @@ All notable changes to this project will be documented in this file.
   issuing scripts select the CA key backend for one run, overriding
   `CA_BACKEND` from `pki.conf` and the environment
 - `lib/cli.sh`: shared option parsing for the scripts
+- `card-tools/card-wipe.py`: erase a card. `--objects` deletes everything
+  visible with the user PIN; `--factory` re-initializes the token with the
+  admin key (`C_InitToken`) and sets a new user PIN (`C_InitPIN`). Shows the
+  card, warns when it holds the directory's CA key, requires typing the card
+  serial, supports `--dry-run`, validates the admin key locally, tries it
+  exactly once and refuses when the card reports earlier wrong admin attempts
+- `card-tools/REFERENCE.md`: sources (Thales manuals and product briefs,
+  OpenSC code, PKCS#11, eIDAS) and measurements taken on a real IDPrime 940
 
 ## [1.2.0] - 2026-10-04
 
