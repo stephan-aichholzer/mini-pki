@@ -20,6 +20,11 @@ All notable changes to this project will be documented in this file.
   locally into `card-tools/pkcs11-provider/` (download, SHA-256 check,
   compile, load test); `lib/pkcs11-provider.sh` finds it automatically, with
   `PKCS11_PROVIDER_DIR` and the system provider as alternatives
+- README: `git clone` quick start step and a step-by-step guide for card mode
+  (portable install, check, PIN, RSA or ECC configuration, create CA, issue,
+  inspect) with troubleshooting
+- `docs/PIN_USAGE.md`: which PIN protects which key on an IDPrime 940, and
+  CA signatures vs. eIDAS qualified signatures
 - `pki.conf` and `lib/ca-key.sh` hold the CA key backend settings shared by all
   scripts; the default `file` backend behaves exactly as before
 - Dockerfile copies `pki.conf` and `lib/`, which the scripts now source

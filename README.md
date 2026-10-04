@@ -21,6 +21,17 @@ A comprehensive toolkit for managing a self-signed Certificate Authority (CA) an
 
 ## Quick Start
 
+### 0. Get the Project
+
+```bash
+git clone https://github.com/stephan-aichholzer/mini-pki.git
+cd mini-pki
+```
+
+Everything runs from this directory - nothing is installed system-wide. For
+a CA key on a smartcard, also follow
+[Smartcard-Backed CA Key](#smartcard-backed-ca-key-pkcs11).
+
 > **Run all scripts from the repository root.** `openssl.cnf` resolves the CA
 > directories relative to the current directory (`dir = .`), so running a
 > script from anywhere else writes the database and certificates to the wrong
@@ -87,6 +98,8 @@ mini-pki/
 ├── openssl.cnf         # OpenSSL configuration
 ├── pki.conf            # CA key backend (file or card) and card settings
 ├── lib/ca-key.sh       # Shared CA key handling used by the scripts
+├── card-tools/         # Optional smartcard helpers (provider build, status, tree view, PIN)
+├── docs/PIN_USAGE.md   # Which PIN protects which key on the card
 ├── index.txt           # CA database
 ├── index.txt.attr      # CA database attributes
 ├── serial              # Certificate serial numbers
@@ -266,52 +279,176 @@ Available in `openssl.cnf`:
 Instead of `private/ca-key.pem`, the CA private key can be generated on and
 used from a PKCS#11 smartcard. Signing happens on the card; the key is
 created *non-extractable* and cannot be copied. Tested with a
-**Thales IDPrime 940** using the SafeNet Authentication Client (SAC).
+**Thales IDPrime 940** using the SafeNet Authentication Client (SAC) on Linux.
 
-### Requirements
+Only the CA key moves to the card. Server, client and code signing keys stay
+software keys, and everything else (database, profiles, verification) works
+as in file mode.
 
-- PC/SC stack: `pcscd`, `libccid`, `opensc` (provides `pkcs11-tool`)
-- Vendor PKCS#11 module - for IDPrime: SafeNet Authentication Client
-  (`/usr/lib/libeTPkcs11.so`). OpenSC alone can use but not create keys.
-- OpenSSL 3 PKCS#11 provider: `apt install pkcs11-provider`, or build
-  [pkcs11-provider](https://github.com/openssl-projects/pkcs11-provider)
-  yourself and point `PKCS11_PROVIDER_DIR` at the directory holding `pkcs11.so`
+### Step 1 - Install
 
-### Usage
+Card mode is **portable**: the OpenSSL pkcs11 provider and the Python card
+tools are built into `card-tools/` inside the project (git-ignored). Only the
+smartcard stack and build tools come from the system.
 
-Select the backend in `pki.conf` (`CA_BACKEND=card`) or per command:
+```bash
+# 1. Smartcard stack and build tools (Debian/Ubuntu)
+sudo apt install pcscd libccid opensc build-essential pkg-config libssl-dev python3-venv curl
+
+# 2. Vendor PKCS#11 module - for IDPrime: SafeNet Authentication Client (SAC),
+#    available from Thales or your card supplier. Provides /usr/lib/libeTPkcs11.so.
+#    (OpenSC alone can use keys on the card but cannot create them.)
+
+# 3. OpenSSL pkcs11 provider, built locally into card-tools/pkcs11-provider/
+card-tools/build-pkcs11-provider.sh
+
+# 4. Python card tools (tree view, PIN helper) in card-tools/.venv
+python3 -m venv card-tools/.venv
+card-tools/.venv/bin/pip install -r card-tools/requirements.txt
+```
+
+`build-pkcs11-provider.sh` downloads
+[pkcs11-provider](https://github.com/openssl-projects/pkcs11-provider) 1.3.0,
+checks its SHA-256, compiles it (about 10 seconds; meson and ninja go into
+`card-tools/.venv`) and verifies that OpenSSL can load it. The scripts find
+it automatically. Alternatives: the distribution package
+(`apt install pkcs11-provider`; Ubuntu 24.04 ships the older 0.3), or any
+build of your own via `PKCS11_PROVIDER_DIR` in `pki.conf`.
+
+### Step 2 - Check the card
+
+```bash
+card-tools/card-status.sh
+```
+
+Read-only - it never logs in. It checks pcscd, reader, card, PKCS#11
+module, OpenSSL provider, PIN state and remaining tries, and whether the CA
+key from `pki.conf` is already on the card. Without the script:
+`pkcs11-tool --module /usr/lib/libeTPkcs11.so -T`.
+
+### Step 3 - Change the factory PIN (new cards)
+
+IDPrime cards ship with user PIN `0000`, flagged *"user PIN to be changed"*.
+Until it is changed, every login fails with `CKR_PIN_EXPIRED` - which means
+the PIN is correct but expired. `pkcs11-tool --change-pin` cannot fix this
+because it logs in first; use:
+
+```bash
+card-tools/.venv/bin/python card-tools/card-set-expired-pin.py
+```
+
+The factory admin key (48 hex zeros) unblocks the user PIN. Change it for
+production cards and keep it safe: **a locked admin key makes the IDPrime
+940 permanently unusable.**
+
+### Step 4 - Configure `pki.conf`
+
+Choose **one** of the two key types and set it in `pki.conf` (not per
+command - every script must use the same values):
+
+```bash
+# RSA CA key (default) - widest compatibility, key generation ~2 minutes
+CA_BACKEND=card
+CARD_KEY_TYPE=rsa:4096
+CARD_KEY_LABEL=mini-pki-ca
+CARD_KEY_ID=01
+```
+
+```bash
+# ECC P-256 CA key - key generation in seconds, smaller certificates
+CA_BACKEND=card
+CARD_KEY_TYPE=EC:prime256v1
+CARD_KEY_LABEL=mini-pki-ca-ec
+CARD_KEY_ID=02
+```
+
+- SAC 10.9 only offers the P-256 curve on the IDPrime 940 (P-384 is refused).
+- **One CA per directory.** `certs/ca-cert.pem`, `index.txt` and `serial`
+  belong to exactly one CA key. For an RSA and an ECC CA side by side, use
+  two copies of this directory, each with its own `pki.conf`.
+- Give every key on the card its own `CARD_KEY_LABEL` **and** `CARD_KEY_ID`;
+  the ID links a key to its certificate.
+- `CARD_TOKEN` (the token label) is only needed when more than one token is
+  connected. `CARD_PIN` lets scripts run without prompting - test cards only.
+
+### Step 5 - Create the root CA
 
 ```bash
 ./init-ca-database.sh
-CA_BACKEND=card ./create-root-ca.sh          # generates RSA-4096 on the card (~2 min)
-CA_BACKEND=card CARD_KEY_TYPE=EC:prime256v1 CARD_KEY_LABEL=mini-pki-ca-ec CARD_KEY_ID=02 \
-    ./create-root-ca.sh                      # or an ECC P-256 CA key (seconds)
-CA_BACKEND=card ./create-server-cert.sh server.example.com
+./create-root-ca.sh
 ```
 
-- The scripts ask for the **card PIN** wherever they asked for the CA
-  passphrase. Set `CARD_PIN` only for test cards.
-- `create-root-ca.sh` reuses an existing key with the configured label, and
-  stores the CA certificate on the card next to the key.
-- Leaf keys (server, client, code signing) stay software keys as before.
-- All settings (`PKCS11_MODULE`, `CARD_TOKEN`, `CARD_KEY_LABEL`, `CARD_KEY_ID`,
-  `CARD_KEY_TYPE`) live in `pki.conf` and can be overridden from the environment.
+The key is generated on the card (or reused if a key with `CARD_KEY_LABEL`
+already exists), the CA certificate is self-signed **by the card** and then
+stored on the card next to its key. You are asked for the **card PIN**
+wherever file mode asks for the CA passphrase.
 
-### Notes for IDPrime cards
+### Step 6 - Issue certificates
 
-- **New cards** ship with user PIN `0000` that *must* be changed first; logging
-  in fails with `CKR_PIN_EXPIRED`. Change it with SAC Tools. The factory admin
-  key (48 hex zeros) unblocks the PIN - change it too and keep it safe.
-- **CA key type:** RSA (`rsa:2048` .. `rsa:4096`, default) or ECC P-256
-  (`CARD_KEY_TYPE=EC:prime256v1`). SAC 10.9 only offers P-256 (P-384 is refused).
-  P-256 generates in seconds, RSA-4096 takes about 2 minutes. An ECC CA can
-  issue certificates for the RSA leaf keys - mixing is fine.
-- Give each key on the card its own `CARD_KEY_LABEL` **and** `CARD_KEY_ID`;
-  the ID links key and certificate.
-- Leaf keys (server, client, code signing) remain RSA software keys: their
-  key/certificate checks compare RSA moduli.
-- Card mode is meant for the host. The Docker image has no PC/SC access unless
-  you pass the host's `pcscd` socket through.
+Unchanged from file mode - the card signs:
+
+```bash
+./create-server-cert.sh server.example.com www.example.com
+./create-client-cert.sh alice
+./create-code-signing-cert.sh build-bot
+openssl verify -CAfile certs/ca-cert.pem certs/server.example.com-cert.pem
+```
+
+An ECC CA can issue certificates for the RSA leaf keys - mixing is fine.
+For revocation and CRLs see [Certificate Revocation](#certificate-revocation).
+
+### Step 7 - Inspect the card
+
+```bash
+card-tools/.venv/bin/python card-tools/card-tree.py --login
+```
+
+```
+└── Objects (3)  all objects
+    └── ID 01
+        ├── Private key  RSA 4096 "mini-pki-ca"
+        │   ├── usage     sign, decrypt, unwrap
+        │   └── access    private, sensitive, always-sensitive, never-extractable, generated-on-card
+        ├── Public key  RSA 4096 "mini-pki-ca"
+        └── Certificate  X.509 "mini-pki-ca"
+            ├── subject   CN=Example Root CA,O=Example
+            ├── valid     2026-10-04 .. 2036-10-01
+            └── CA        yes
+```
+
+`never-extractable` and `generated-on-card` confirm the key was created on
+the card and can never leave it.
+
+Which PIN protects which key, the IDPrime *Digital Signature PIN*, and how a
+CA signature differs from an eIDAS qualified signature:
+[docs/PIN_USAGE.md](docs/PIN_USAGE.md).
+
+### Card tools
+
+| Tool | Purpose |
+|---|---|
+| `card-tools/build-pkcs11-provider.sh` | Builds the OpenSSL pkcs11 provider into `card-tools/pkcs11-provider/` (portable, no system install) |
+| `card-tools/card-status.sh` | Read-only health check of the whole card setup (no PIN) |
+| `card-tools/card-tree.py [--login] [--slot N] [--mechanisms] [--module M]` | Tree view of the token: info, PIN status, memory, objects grouped by ID with key type/size, usage, access flags and decoded certificates. `--login` logs in to **one** slot only |
+| `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
+
+The Python tools need `card-tools/.venv` (step 1) and use `$PKCS11_MODULE`
+(default: SAC). Pass `--module /usr/lib/x86_64-linux-gnu/opensc-pkcs11.so`
+to `card-tree.py` to see the card through OpenSC instead.
+
+### Card troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `Card absent or mute` in the pcscd log, no ATR | Card inserted the wrong way round, or dirty contacts |
+| `CKR_PIN_EXPIRED` | Factory PIN still active - step 3 |
+| `CKR_ATTRIBUTE_VALUE_INVALID` on key generation | Unsupported key type, e.g. `EC:secp384r1` - use P-256 or RSA |
+| `pkcs11 provider not found` | Run `card-tools/build-pkcs11-provider.sh` (or `apt install pkcs11-provider`, or set `PKCS11_PROVIDER_DIR`) |
+| Issued certificate does not verify | `CARD_KEY_LABEL` differs from the one the CA was created with - keep the settings in `pki.conf` |
+| A second PIN slot shows up (OpenSC) | The IDPrime 940 *Digital Signature PIN* - not used by mini-pki. Logging in to it with the user PIN costs a try; `card-tree.py --login` only uses one slot |
+
+Card mode is meant for the host: the Docker image has no PC/SC access unless
+you pass the host's `pcscd` socket through.
 
 ## Security Best Practices
 
