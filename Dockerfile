@@ -6,7 +6,7 @@ FROM alpine:3.24
 # Set labels
 LABEL maintainer="X.509 CA Project"
 LABEL description="Containerized Certificate Authority environment with OpenSSL"
-LABEL version="1.1.0"
+LABEL version="1.2.0"
 
 # Install OpenSSL and basic utilities
 RUN apk add --no-cache \

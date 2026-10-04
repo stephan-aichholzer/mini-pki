@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-04
+
+Smartcard-backed CA key: the CA private key can now live on a PKCS#11 card
+(tested with a Thales IDPrime 940), plus the fixes collected since 1.1.0.
+
 ### Added
+
+#### Smartcard CA key (card mode)
 - Smartcard-backed CA key via PKCS#11 (`CA_BACKEND=card` in `pki.conf`),
   tested with Thales IDPrime 940 and SafeNet Authentication Client.
   `create-root-ca.sh` generates (or reuses) the key on the card and stores the
@@ -41,13 +48,29 @@ All notable changes to this project will be documented in this file.
   scripts; the default `file` backend behaves exactly as before
 - Dockerfile copies `pki.conf` and `lib/`, which the scripts now source
 
-### Added
+#### Other
 - PKCS#12 bundle script (`create-pkcs12-bundle.sh`) for cross-platform
   certificate distribution
-
-### Added
 - `create-root-ca.sh` refuses to replace an existing CA unless confirmed;
   overwriting the key invalidates every certificate already issued from it
+
+### Changed
+- Private keys and bundles are created `600` instead of `400`, and
+  certificates `644` instead of `444`. The read-only modes made every re-run
+  fail with a bare "Permission denied"; this is a toolkit for generating
+  certificates, not for holding them in production, so the owner keeps write
+  access. Tighten a key to `400` when you move it into service
+- `init-ca-database.sh` writes `index.txt.attr` with `unique_subject = no`.
+  openssl otherwise refuses to issue a second certificate for a name already
+  in the database, so re-running a script failed with "There is already a
+  certificate for /CN=..." — and only after the private key had been
+  overwritten
+- Docker base image bumped from Alpine 3.19 to 3.24. Alpine 3.19 reached end of
+  support in November 2025 and shipped OpenSSL 3.1.x, a branch that is no
+  longer maintained; 3.24 ships OpenSSL 3.5.x
+
+### Removed
+- Duplicate `[ ocsp ]` section in `openssl.cnf`, identical to `[ v3_ocsp ]`
 
 ### Fixed
 - Key/certificate comparisons no longer pipe the modulus through `openssl md5`.
@@ -72,24 +95,6 @@ All notable changes to this project will be documented in this file.
   instead of `lsof`, which is not installed in the Docker image
 - `create-combined-pem.sh` usage hints: Node.js `pfx` expects PKCS#12, not a
   combined PEM, and the Apache example was missing `SSLCertificateKeyFile`
-
-### Changed
-- Private keys and bundles are created `600` instead of `400`, and
-  certificates `644` instead of `444`. The read-only modes made every re-run
-  fail with a bare "Permission denied"; this is a toolkit for generating
-  certificates, not for holding them in production, so the owner keeps write
-  access. Tighten a key to `400` when you move it into service
-- `init-ca-database.sh` writes `index.txt.attr` with `unique_subject = no`.
-  openssl otherwise refuses to issue a second certificate for a name already
-  in the database, so re-running a script failed with "There is already a
-  certificate for /CN=..." — and only after the private key had been
-  overwritten
-- Docker base image bumped from Alpine 3.19 to 3.24. Alpine 3.19 reached end of
-  support in November 2025 and shipped OpenSSL 3.1.x, a branch that is no
-  longer maintained; 3.24 ships OpenSSL 3.5.x
-
-### Removed
-- Duplicate `[ ocsp ]` section in `openssl.cnf`, identical to `[ v3_ocsp ]`
 
 ### Fixed (documentation)
 - DOCKER.md no longer references the test scripts removed in 1.1.0; the
