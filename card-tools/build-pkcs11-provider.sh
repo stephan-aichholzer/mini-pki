@@ -67,7 +67,7 @@ mkdir -p "$BUILD" "$OUT"
 
 if [ ! -f "$TARBALL" ]; then
     echo "Downloading $URL"
-    curl -fL --proto '=https' -o "$TARBALL" "$URL"
+    curl -fsSL --proto '=https' -o "$TARBALL" "$URL"
 fi
 echo "$SHA256  $TARBALL" | sha256sum -c --quiet || {
     echo "Checksum mismatch - refusing to build. Delete $TARBALL to download again."

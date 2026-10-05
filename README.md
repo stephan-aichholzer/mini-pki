@@ -290,23 +290,27 @@ as in file mode.
 
 Card mode is **portable**: the OpenSSL pkcs11 provider and the Python card
 tools are built into `card-tools/` inside the project (git-ignored). Only the
-smartcard stack and build tools come from the system.
+smartcard stack, the vendor module and build tools come from the system.
 
 ```bash
-# 1. Smartcard stack and build tools (Debian/Ubuntu)
-sudo apt install pcscd libccid opensc build-essential pkg-config libssl-dev python3-venv curl
-
-# 2. Vendor PKCS#11 module - for IDPrime: SafeNet Authentication Client (SAC),
-#    available from Thales or your card supplier. Provides /usr/lib/libeTPkcs11.so.
-#    (OpenSC alone can use keys on the card but cannot create them.)
-
-# 3. OpenSSL pkcs11 provider, built locally into card-tools/pkcs11-provider/
-card-tools/build-pkcs11-provider.sh
-
-# 4. Python card tools (tree view, PIN helper) in card-tools/.venv
-python3 -m venv card-tools/.venv
-card-tools/.venv/bin/pip install -r card-tools/requirements.txt
+card-tools/setup.sh
 ```
+
+`setup.sh` checks and builds everything in order and is safe to run again:
+
+| | Part | Source |
+|---|---|---|
+| 1 | Smartcard stack: `pcscd`, CCID driver, OpenSC tools | system packages |
+| 2 | Vendor PKCS#11 module (`PKCS11_MODULE` in `pki.conf`) - for IDPrime: SafeNet Authentication Client, `/usr/lib/libeTPkcs11.so` | Thales or your card supplier |
+| 3 | Build tools (only if the provider must be built) | system packages |
+| 4 | OpenSSL pkcs11 provider `card-tools/pkcs11-provider/pkcs11.so` | built by `build-pkcs11-provider.sh` |
+| 5 | Python card tools in `card-tools/.venv` | `requirements.txt` |
+| 6 | Final check | `card-status.sh` |
+
+It never uses `sudo`: missing system packages are listed as one ready-made
+command, e.g. `sudo apt install opensc build-essential curl` (Debian/Ubuntu).
+OpenSC alone can use keys on the card but cannot create them - the vendor
+module is needed for key generation.
 
 `build-pkcs11-provider.sh` downloads
 [pkcs11-provider](https://github.com/openssl-projects/pkcs11-provider) 1.3.0,
@@ -479,6 +483,7 @@ CA signature differs from an eIDAS qualified signature:
 
 | Tool | Purpose |
 |---|---|
+| `card-tools/setup.sh [--rebuild]` | One-shot setup of card mode: checks system parts, builds provider and venv, runs `card-status.sh`. Safe to run again |
 | `card-tools/build-pkcs11-provider.sh` | Builds the OpenSSL pkcs11 provider into `card-tools/pkcs11-provider/` (portable, no system install) |
 | `card-tools/card-status.sh` | Read-only health check of the whole card setup (no PIN) |
 | `card-tools/card-manifest.sh [--write]` | Shows which card holds this CA's key (works without the card); `--write` records the inserted card |
@@ -486,7 +491,7 @@ CA signature differs from an eIDAS qualified signature:
 | `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
 | `card-tools/card-wipe.py --objects \| --factory [--dry-run]` | Erases the card. `--objects` deletes all keys and certificates with the user PIN (admin key untouched); `--factory` re-initializes the token with the admin key and sets a new user PIN. Shows the card first, warns if it holds this directory's CA key, and only proceeds after you **type the card serial**. Refuses `--factory` if the card reports earlier wrong admin key attempts |
 
-The Python tools need `card-tools/.venv` (step 1) and use `$PKCS11_MODULE`
+The Python tools need `card-tools/.venv` (created by `setup.sh`) and use `$PKCS11_MODULE`
 (default: SAC). Pass `--module /usr/lib/x86_64-linux-gnu/opensc-pkcs11.so`
 to `card-tree.py` to see the card through OpenSC instead.
 

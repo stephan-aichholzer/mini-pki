@@ -17,8 +17,15 @@ All notable changes to this project will be documented in this file.
   card, warns when it holds the directory's CA key, requires typing the card
   serial, supports `--dry-run`, validates the admin key locally, tries it
   exactly once and refuses when the card reports earlier wrong admin attempts
+- `card-tools/setup.sh`: one-shot, re-runnable setup of card mode - checks
+  the smartcard stack, vendor module and build tools (listing missing
+  packages as one `apt` command, never using sudo), builds the pkcs11
+  provider and the Python venv if missing, then runs `card-status.sh`
 - `card-tools/REFERENCE.md`: sources (Thales manuals and product briefs,
   OpenSC code, PKCS#11, eIDAS) and measurements taken on a real IDPrime 940
+
+### Changed
+- `build-pkcs11-provider.sh` downloads quietly (no curl progress meter)
 
 ## [1.2.0] - 2026-10-04
 
