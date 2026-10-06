@@ -181,29 +181,35 @@ function Show-Readers($readers) {
     }
 }
 
-# The reader NAME refers to, or the only reader when NAME is empty
-function Select-Reader($devices) {
+# The smartcard readers NAME refers to - without NAME all of them - among
+# those passing $filter. With -One exactly one must match. Only readers are
+# ever selected, so a name can never hand another device (a network adapter,
+# a keyboard) to WSL.
+function Select-Readers($devices, [scriptblock]$filter, [switch]$One) {
+    $readers = @($devices | Where-Object { $_.IsReader })
+    if ($readers.Count -eq 0) { Fail "no smartcard reader found - is it plugged in? (all devices: usbipd list)" }
     if ($Name) {
         $n = $Name.ToLower()
-        $found = @($devices | Where-Object {
+        $found = @($readers | Where-Object {
             $_.BusId -eq $Name -or $_.VidPid -eq $n -or $_.Name.ToLower().Contains($n)
         })
-        if ($found.Count -eq 0) { Fail "no USB device matches '$Name' - list the readers with -Detect" }
+        if ($found.Count -eq 0) { Fail "no smartcard reader matches '$Name' - list the readers with -Detect" }
     } else {
-        $found = @($devices | Where-Object { $_.IsReader })
-        if ($found.Count -eq 0) { Fail "no smartcard reader found - is it plugged in? (all devices: usbipd list)" }
+        $found = $readers
     }
-    if ($found.Count -gt 1) {
-        Write-Host "Several devices match - name one by BUSID or part of its name:"
+    $found = @($found | Where-Object $filter)
+    if ($One -and $found.Count -gt 1) {
+        Write-Host "Several readers match - name one by BUSID or part of its name:"
         Show-Readers $found
         exit 1
     }
-    return $found[0]
+    return $found
 }
 
 function Get-RunningWsl {
     $env:WSL_UTF8 = '1'
     $out = & wsl.exe --list --running --quiet 2>$null
+    if ($LASTEXITCODE -ne 0) { return @() }   # none running: a message, not a name
     return @($out | ForEach-Object { "$_".Replace("`0", '').Trim() } | Where-Object { $_ })
 }
 
@@ -228,8 +234,9 @@ switch ($Action) {
     }
 
     'attach' {
-        $r = Select-Reader @(Get-Devices)
-        if (-not $r.BusId) { Fail "$($r.Name) is not plugged in" }
+        $plugged = @(Select-Readers @(Get-Devices) { $_.BusId } -One)
+        if ($plugged.Count -eq 0) { Fail "the reader is not plugged in" }
+        $r = $plugged[0]
         if ($r.Attached) { Write-Host "$($r.Name) ($($r.BusId)) is already attached to WSL."; exit 0 }
         if (@(Get-RunningWsl).Count -eq 0) {
             Fail "WSL is not running - open a WSL terminal (it keeps WSL running), then run this again"
@@ -251,20 +258,28 @@ switch ($Action) {
     }
 
     'detach' {
-        $r = Select-Reader @(Get-Devices)
-        if (-not $r.Attached -and -not $r.Shared) {
-            Write-Host "$($r.Name) already belongs to Windows - nothing to do."
+        # Every matching reader that is attached or shared - also bindings
+        # left over from another USB port ("not plugged in (still shared)")
+        $busy = @(Select-Readers @(Get-Devices) { $_.Attached -or $_.Shared })
+        if ($busy.Count -eq 0) {
+            Write-Host "The reader already belongs to Windows - nothing to do."
             exit 0
         }
-        if ($r.Attached) {
-            Write-Host "Detaching $($r.Name) ($($r.BusId)) from WSL..."
-            & $Usbipd detach --busid $r.BusId
-            if ($LASTEXITCODE -ne 0) { Fail "usbipd detach failed" }
+        foreach ($r in $busy) {
+            if ($r.Attached) {
+                Write-Host "Detaching $($r.Name) ($($r.BusId)) from WSL..."
+                & $Usbipd detach --busid $r.BusId
+                if ($LASTEXITCODE -ne 0) { Fail "usbipd detach failed" }
+            }
         }
-        Write-Host "Stop sharing $($r.Name)..."
-        $unbindArgs = if ($r.BusId) { @('unbind', '--busid', $r.BusId) } else { @('unbind', '--guid', $r.Guid) }
-        $code = Invoke-UsbipdElevated $unbindArgs
-        if ($code -ne 0) { Fail "usbipd unbind failed (exit code $code)" }
+        # Stop sharing - one UAC prompt per binding (more than one only when
+        # the reader was also bound on another USB port)
+        foreach ($r in @($busy | Where-Object { $_.Shared })) {
+            Write-Host "Stop sharing $($r.Name)..."
+            $unbindArgs = if ($r.BusId) { @('unbind', '--busid', $r.BusId) } else { @('unbind', '--guid', $r.Guid) }
+            $code = Invoke-UsbipdElevated $unbindArgs
+            if ($code -ne 0) { Fail "usbipd unbind failed (exit code $code)" }
+        }
         Write-Host "Done - Windows owns the reader again. If Windows does not see it, unplug and replug it."
     }
 }
