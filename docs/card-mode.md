@@ -221,11 +221,23 @@ CA signature differs from an eIDAS qualified signature:
 | `card-tools/card-tree.py [--login] [--slot N] [--mechanisms] [--module M]` | Tree view of the token: info, PIN status, memory, objects grouped by ID with key type/size, usage, access flags and decoded certificates. `--login` logs in to **one** slot only |
 | `card-tools/smartcard-remote.sh [--detect \| --attach \| --detach] [NAME]` | WSL2 only: moves the USB reader between Windows and WSL2 via usbipd-win (runs `Smartcard-Remote.ps1` on the Windows side; shares/unshares with a UAC prompt). See [card-mode-wsl2.md](card-mode-wsl2.md#moving-the-reader-between-windows-and-wsl) |
 | `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
+| `card-tools/card-import-p12.py FILE.p12 [--label L] [--id ID] [--dry-run] [--yes]` | Loads a private key and its certificate from a PKCS#12 file onto the card (key sensitive, not extractable), checks it with a test signature against the certificate and removes everything again if a step fails. Refuses a label or ID already in use. The same file can go onto several cards - a backup card. IDPrime 940: RSA-2048/4096 only, EC keys are refused |
 | `card-tools/card-wipe.py --objects \| --factory [--dry-run]` | Erases the card. `--objects` deletes all keys and certificates with the user PIN (admin key untouched); `--factory` re-initializes the token with the admin key and sets a new user PIN. Shows the card first, warns if it holds this directory's CA key, and only proceeds after you **type the card serial**. Refuses `--factory` if the card reports earlier wrong admin key attempts |
 
 The Python tools need `card-tools/.venv` (created by `setup.sh`) and use `$PKCS11_MODULE`
 (default: SAC). Pass `--module /usr/lib/x86_64-linux-gnu/opensc-pkcs11.so`
 to `card-tree.py` to see the card through OpenSC instead.
+
+**Loading a key from a PKCS#12 file onto a card** (e.g. a key made on an
+offline machine, or a backup for a replacement card):
+
+```bash
+card-tools/.venv/bin/python card-tools/card-import-p12.py key.p12 --dry-run   # look first, no PIN
+card-tools/.venv/bin/python card-tools/card-import-p12.py key.p12 --label my-key
+```
+
+The key is then usable like a key generated on the card, e.g. via
+`pkcs11:object=my-key;type=private`. The PKCS#12 file is left as it is.
 
 **Erasing a card for reuse:**
 

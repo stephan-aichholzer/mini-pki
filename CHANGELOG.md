@@ -26,6 +26,10 @@ All notable changes to this project will be documented in this file.
 - `docs/card-mode-wsl2.md`: card mode under WSL2 - usbipd-win installation,
   binding and attaching the reader (PowerShell), SAC core package, polkit
   rule for pcscd, troubleshooting
+- `card-tools/card-import-p12.py`: loads a private key and its certificate
+  from a PKCS#12 file onto a card (sensitive, not extractable), verifies a
+  test signature against the certificate and rolls back on any error.
+  `--dry-run` uses no PIN; a label or ID already on the card is refused
 - `card-tools/pcscd-polkit.rules`: polkit rule template that lets one user
   use pcscd outside an active local login session (WSL2, IDE terminals, ssh)
 - `lib/pcsc.sh`: detects pcscd refusing the caller via polkit (`pkcheck`)

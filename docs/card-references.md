@@ -72,6 +72,12 @@ Verified on a real card, not taken from documentation:
   `CKR_ATTRIBUTE_VALUE_INVALID`, RSA-3072 → `CKR_DEVICE_MEMORY`, as for key
   generation. So an EC key can only be generated on the card - one card, no
   backup copy.
+- Key usages under the user PIN: SAC gives every RSA private key
+  "decrypt, sign, unwrap", generated or imported. `CKA_UNWRAP=FALSE` in the
+  import template is ignored; `CKA_DECRYPT=FALSE` makes `C_CreateObject` fail
+  with a misleading `CKR_PIN_INCORRECT` - no PIN try is used (user and
+  Digital Signature PIN counters unchanged). Imported keys sign through the
+  OpenSSL pkcs11 provider exactly like generated ones.
 - Memory: ~73 KB in total; one RSA-4096 key pair plus certificate uses ~3 KB.
 - The public key read from the card (`pkcs11-tool --read-object --type pubkey`)
   is byte-identical to the certificate's SubjectPublicKeyInfo - basis of the
