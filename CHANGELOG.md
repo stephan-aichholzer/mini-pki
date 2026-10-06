@@ -29,6 +29,8 @@ All notable changes to this project will be documented in this file.
 - `card-tools/pcscd-polkit.rules`: polkit rule template that lets one user
   use pcscd outside an active local login session (WSL2, IDE terminals, ssh)
 - `lib/pcsc.sh`: detects pcscd refusing the caller via polkit (`pkcheck`)
+- `.gitignore` / `.dockerignore` exclude SAC packages (`*.deb`, `*.rpm`,
+  `SAC_*.zip`): SAC is licensed with the cards and must not be redistributed
 
 ### Changed
 - `build-pkcs11-provider.sh` downloads quietly (no curl progress meter)

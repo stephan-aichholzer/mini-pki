@@ -136,7 +136,10 @@ Optional, for debugging: `pcsc-tools` (`pcsc_scan`) and `usbutils` (`lsusb`).
 ## Step 5 - WSL: SafeNet Authentication Client
 
 SAC comes from Thales or the card supplier as a zip (e.g.
-`SAC_10.9._R1_GA_Linux.zip`). On WSL use the **core** package from
+`SAC_10.9._R1_GA_Linux.zip`). It is licensed for use with the purchased
+cards and **must not be redistributed** - keep it outside this repository
+(mini-pki ignores `*.deb`, `*.rpm` and `SAC_*.zip` as a safety net), do not
+commit it and do not put it into a Docker image. On WSL use the **core** package from
 `Ubuntu/Installation/withoutUI/` - it has no graphical tools and only needs
 `libssl3`, `libpcsclite1` and `pcscd`. Extract it (no `unzip` needed):
 

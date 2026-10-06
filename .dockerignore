@@ -58,3 +58,11 @@ desktop.ini
 
 # CA card manifest (instance data, like index.txt)
 ca-card.manifest
+
+# Vendor middleware (SafeNet Authentication Client) - licensed with the
+# cards, must not be redistributed. Keep it outside the repository.
+*.deb
+*.rpm
+SAC_*.zip
+SafenetAuthenticationClient*
+safenetauthenticationclient*
