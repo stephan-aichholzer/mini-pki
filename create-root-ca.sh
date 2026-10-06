@@ -135,11 +135,18 @@ if [ "$CA_BACKEND" = card ]; then
     echo ""
     echo "Writing the CA certificate to the card..."
     openssl x509 -in certs/ca-cert.pem -outform DER -out certs/ca-cert.der
-    # Replace, not add: a previous run may have stored an older CA certificate
-    card_tool --login --delete-object --type cert --label "$CARD_KEY_LABEL" \
-        > /dev/null 2>&1 || true
+    # pkcs11-tool prompts for the PIN on stdout and reads it with stdout's
+    # terminal settings: redirecting stdout of a --login call fails with
+    # "util_getpass error", so these calls keep stdout on the terminal.
+    # Replace, not add: a previous run may have stored an older CA certificate.
+    # Certificates are public objects, so the check itself needs no PIN.
+    if card_tool --list-objects --type cert 2>/dev/null \
+            | grep -q "label: *${CARD_KEY_LABEL}\$"; then
+        echo "Removing the previous CA certificate from the card..."
+        card_tool --login --delete-object --type cert --label "$CARD_KEY_LABEL"
+    fi
     card_tool --login --write-object certs/ca-cert.der --type cert \
-        --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL" > /dev/null
+        --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL"
     rm -f certs/ca-cert.der
     echo "✓ CA certificate stored on the card"
 

@@ -50,6 +50,20 @@ All notable changes to this project will be documented in this file.
   access"* with the fix instead of the misleading *"no reader found"* /
   *"no card found"* when polkit rejects the caller
 
+### Fixed
+- `create-root-ca.sh --card` failed at the very end with *"util_getpass
+  error"* when writing the CA certificate to the card. `pkcs11-tool` reads
+  the PIN with the terminal settings of stdout, which was redirected to
+  `/dev/null`. The PIN calls now keep stdout on the terminal, and an older CA
+  certificate is only deleted (with a visible PIN prompt) if the card has one
+  - before, that deletion always failed silently, so a re-run added a second
+  certificate instead of replacing the first
+
+### Documentation
+- `docs/card-references.md`: private key import tested on the IDPrime 940 -
+  RSA-2048/4096 import works, EC P-256 import is refused (`C_CreateObject` and
+  `C_UnwrapKey`), P-384 and RSA-3072 are not supported at all
+
 ## [1.2.0] - 2026-10-04
 
 Smartcard-backed CA key: the CA private key can now live on a PKCS#11 card

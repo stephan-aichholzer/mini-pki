@@ -60,6 +60,18 @@ Verified on a real card, not taken from documentation:
 - Key generation: RSA-2048, RSA-4096, EC P-256 work; EC P-384/P-521 fail with
   `CKR_ATTRIBUTE_VALUE_INVALID`, RSA-3072 with `CKR_DEVICE_MEMORY` (card far
   from full). P-256 key generation ~4 s, RSA-4096 ~2 min, a signature ~0.6 s.
+- Private key **import** (2026-10-06, SAC 10.9 R1, user PIN, throwaway keys):
+  RSA-2048 and RSA-4096 import with `C_CreateObject` and with `C_UnwrapKey`
+  (PKCS#8, wrapped with an AES-CBC-PAD session key); the imported key is
+  `sensitive`, not extractable, `local=false`, no PIN per signature, and its
+  signatures verify against the original certificate. **EC P-256 import is
+  refused** on both paths: `C_CreateObject` → `CKR_USER_NOT_LOGGED_IN` (also
+  with `pkcs11-tool --write-object --type privkey`), `C_UnwrapKey` →
+  `CKR_TEMPLATE_INCONSISTENT` with `CKA_EC_PARAMS`, `CKR_WRAPPED_KEY_INVALID`
+  without, for raw scalar, SEC1 and PKCS#8 encodings alike. P-384 →
+  `CKR_ATTRIBUTE_VALUE_INVALID`, RSA-3072 → `CKR_DEVICE_MEMORY`, as for key
+  generation. So an EC key can only be generated on the card - one card, no
+  backup copy.
 - Memory: ~73 KB in total; one RSA-4096 key pair plus certificate uses ~3 KB.
 - The public key read from the card (`pkcs11-tool --read-object --type pubkey`)
   is byte-identical to the certificate's SubjectPublicKeyInfo - basis of the
