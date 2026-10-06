@@ -54,7 +54,7 @@ elif pcsc_access_denied; then
     exit 1
 else
     bad "no reader found"
-    info "WSL2: attach the reader first - usbipd.exe attach --wsl --busid <BUSID> (HOWTO_WSL2_SETUP.md)"
+    info "WSL2: attach the reader first - usbipd.exe attach --wsl --busid <BUSID> (docs/card-mode-wsl2.md)"
 fi
 
 section "Card"

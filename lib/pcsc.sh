@@ -30,5 +30,5 @@ pcsc_access_denied_help() {
     echo "this shell is not an active local login session (WSL2, IDE terminal, ssh)."
     echo "Readers are hidden, not missing. Allow the user with a polkit rule:"
     echo "  sed \"s/USERNAME/\$USER/\" card-tools/pcscd-polkit.rules | sudo tee /etc/polkit-1/rules.d/49-pcscd-\$USER.rules && sudo systemctl restart polkit pcscd"
-    echo "Confirm: journalctl -u pcscd | grep 'NOT authorized'  - see HOWTO_WSL2_SETUP.md"
+    echo "Confirm: journalctl -u pcscd | grep 'NOT authorized'  - see docs/card-mode-wsl2.md"
 }

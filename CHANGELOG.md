@@ -21,9 +21,9 @@ All notable changes to this project will be documented in this file.
   the smartcard stack, vendor module and build tools (listing missing
   packages as one `apt` command, never using sudo), builds the pkcs11
   provider and the Python venv if missing, then runs `card-status.sh`
-- `card-tools/REFERENCE.md`: sources (Thales manuals and product briefs,
+- `docs/card-references.md`: sources (Thales manuals and product briefs,
   OpenSC code, PKCS#11, eIDAS) and measurements taken on a real IDPrime 940
-- `HOWTO_WSL2_SETUP.md`: card mode under WSL2 - usbipd-win installation,
+- `docs/card-mode-wsl2.md`: card mode under WSL2 - usbipd-win installation,
   binding and attaching the reader (PowerShell), SAC core package, polkit
   rule for pcscd, troubleshooting
 - `card-tools/pcscd-polkit.rules`: polkit rule template that lets one user
@@ -33,6 +33,12 @@ All notable changes to this project will be documented in this file.
   `SAC_*.zip`): SAC is licensed with the cards and must not be redistributed
 
 ### Changed
+- Documentation layout: all guides live in `docs/` with consistent names -
+  `DOCKER.md` -> `docs/docker.md`, `docs/PIN_USAGE.md` -> `docs/card-pins.md`,
+  and the smartcard section of the README -> `docs/card-mode.md`. The README
+  keeps an overview with a documentation index; its "Verification &
+  Troubleshooting" and "Using Certificates" sections are merged into
+  "Working with Certificates"
 - `build-pkcs11-provider.sh` downloads quietly (no curl progress meter)
 - `card-status.sh` and the card pre-flight check report *"pcscd refuses
   access"* with the fix instead of the misleading *"no reader found"* /

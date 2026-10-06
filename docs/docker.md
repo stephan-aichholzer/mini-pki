@@ -22,8 +22,8 @@ docker run -it --rm x509-ca:latest
 
 > **Smartcard CA keys:** card mode (`CA_BACKEND=card`) is meant for the host.
 > The image contains no PC/SC stack, vendor PKCS#11 module or pkcs11
-> provider, so use file mode inside the container - see the README section
-> "Smartcard-Backed CA Key".
+> provider, so use file mode inside the container - see
+> [card-mode.md](card-mode.md).
 
 ## Image Details
 

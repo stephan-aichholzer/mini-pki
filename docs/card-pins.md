@@ -1,8 +1,8 @@
 # IDPrime 940 — which PIN protects which key
 
 How PINs and keys belong together on a Thales IDPrime 940, and what that
-means for the mini-pki card mode. Setup steps: README,
-[Smartcard-Backed CA Key](../README.md#smartcard-backed-ca-key-pkcs11).
+means for the mini-pki card mode. Setup steps:
+[card-mode.md](card-mode.md).
 
 ## The core idea
 

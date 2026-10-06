@@ -1,7 +1,7 @@
 # References - smartcard / PKCS#11 card mode
 
-Sources behind the card mode, the card tools and the statements in the
-README and [docs/PIN_USAGE.md](../docs/PIN_USAGE.md). For each source: what
+Sources behind the card mode, the card tools and the statements in
+[card-mode.md](card-mode.md) and [card-pins.md](card-pins.md). For each source: what
 it was used for. Links checked 2026-10-04.
 
 ## Thales / SafeNet documentation

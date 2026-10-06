@@ -2,7 +2,7 @@
 
 How to use a USB smartcard reader with a Thales IDPrime 940 and the SafeNet
 Authentication Client (SAC) from mini-pki running in WSL2. The general card
-mode setup is in the [README](README.md#smartcard-backed-ca-key-pkcs11); this
+mode setup is in [card-mode.md](card-mode.md); this
 document covers what is different on WSL2.
 
 Tested 2026-10-06: Windows 11, usbipd-win 5.3, WSL2 kernel 6.18, Ubuntu 24.04,
@@ -230,7 +230,7 @@ usbipd detach --busid 12-4
 ## Step 8 - Set up mini-pki card mode
 
 From here on everything is as on native Linux - continue with the
-[README](README.md#smartcard-backed-ca-key-pkcs11):
+[card-mode.md](card-mode.md):
 
 ```bash
 card-tools/setup.sh
@@ -257,4 +257,4 @@ project and ends with `card-tools/card-status.sh`, which must report
 | Windows smartcard login or Windows SAC stopped working | The reader belongs to WSL: `usbipd detach`, or `usbipd unbind` after `--force` (step 3) |
 
 For card problems that are not WSL specific (expired factory PIN, key types,
-wrong card) see the README's *Card troubleshooting* section.
+wrong card) see [card-mode.md](card-mode.md#troubleshooting).
