@@ -219,6 +219,7 @@ CA signature differs from an eIDAS qualified signature:
 | `card-tools/card-status.sh` | Read-only health check of the whole card setup (no PIN) |
 | `card-tools/card-manifest.sh [--write]` | Shows which card holds this CA's key (works without the card); `--write` records the inserted card |
 | `card-tools/card-tree.py [--login] [--slot N] [--mechanisms] [--module M]` | Tree view of the token: info, PIN status, memory, objects grouped by ID with key type/size, usage, access flags and decoded certificates. `--login` logs in to **one** slot only |
+| `card-tools/smartcard-remote.sh [--detect \| --attach \| --detach] [NAME]` | WSL2 only: moves the USB reader between Windows and WSL2 via usbipd-win (runs `Smartcard-Remote.ps1` on the Windows side; shares/unshares with a UAC prompt). See [card-mode-wsl2.md](card-mode-wsl2.md#moving-the-reader-between-windows-and-wsl) |
 | `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
 | `card-tools/card-wipe.py --objects \| --factory [--dry-run]` | Erases the card. `--objects` deletes all keys and certificates with the user PIN (admin key untouched); `--factory` re-initializes the token with the admin key and sets a new user PIN. Shows the card first, warns if it holds this directory's CA key, and only proceeds after you **type the card serial**. Refuses `--factory` if the card reports earlier wrong admin key attempts |
 

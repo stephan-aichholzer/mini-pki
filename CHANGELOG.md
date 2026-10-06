@@ -29,6 +29,12 @@ All notable changes to this project will be documented in this file.
 - `card-tools/pcscd-polkit.rules`: polkit rule template that lets one user
   use pcscd outside an active local login session (WSL2, IDE terminals, ssh)
 - `lib/pcsc.sh`: detects pcscd refusing the caller via polkit (`pkcheck`)
+- `card-tools/Smartcard-Remote.ps1` (Windows PowerShell 5.1+) and its WSL
+  wrapper `card-tools/smartcard-remote.sh`: `--detect`, `--attach`,
+  `--detach` move the USB reader between Windows and WSL2 in one command -
+  finds the reader (by BUSID, VID:PID or name from usbipd-win's USB ID list),
+  binds with `--force` when a USB filter requires it, and asks for
+  administrator rights (UAC) only for bind/unbind
 - `.gitignore` / `.dockerignore` exclude SAC packages (`*.deb`, `*.rpm`,
   `SAC_*.zip`): SAC is licensed with the cards and must not be redistributed
 

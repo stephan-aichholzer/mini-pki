@@ -5,6 +5,11 @@ Authentication Client (SAC) from mini-pki running in WSL2. The general card
 mode setup is in [card-mode.md](card-mode.md); this
 document covers what is different on WSL2.
 
+**Short version:** set up once (steps 1-8), then moving the reader between
+Windows and WSL is one command -
+`card-tools/smartcard-remote.sh --attach` / `--detach`, see
+[Moving the reader between Windows and WSL](#moving-the-reader-between-windows-and-wsl).
+
 Tested 2026-10-06: Windows 11, usbipd-win 5.3, WSL2 kernel 6.18, Ubuntu 24.04,
 pcscd 2.0.3, OpenSC 0.25, SAC 10.9 R1 (core), HID OMNIKEY 3021 reader,
 IDPrime 940.
@@ -84,6 +89,11 @@ From inside WSL the tool is reachable as
 `"/mnt/c/Program Files/usbipd-win/usbipd.exe"`.
 
 ## Step 3 - Windows: share the reader (once, as administrator)
+
+> **Shortcut:** `card-tools/smartcard-remote.sh --attach` does steps 3 and 7
+> in one go, including `--force` and the administrator prompt - see
+> [Moving the reader](#moving-the-reader-between-windows-and-wsl). The manual
+> commands below show what it does; skip to step 4 if you use it.
 
 Open PowerShell **as administrator** (Start menu, right-click *Windows
 PowerShell* -> *Run as administrator*) and list the USB devices:
@@ -193,7 +203,9 @@ process; the rule above is narrower.
 
 ## Step 7 - Attach the reader to WSL
 
-No administrator needed. From PowerShell:
+Easiest: `card-tools/smartcard-remote.sh --attach` - see
+[Moving the reader](#moving-the-reader-between-windows-and-wsl). By hand, no
+administrator needed. From PowerShell:
 
 ```powershell
 usbipd attach --wsl --busid 12-4
@@ -240,10 +252,58 @@ It builds the OpenSSL pkcs11 provider and the Python card tools inside the
 project and ends with `card-tools/card-status.sh`, which must report
 *All checks passed*.
 
+## Moving the reader between Windows and WSL
+
+`card-tools/Smartcard-Remote.ps1` wraps the usbipd commands of steps 3 and 7.
+It finds the reader by itself, shares it with `--force` when a USB filter
+requires it, and asks for administrator rights (a UAC prompt on the desktop)
+only for sharing and unsharing.
+
+From WSL, through the wrapper:
+
+```bash
+card-tools/smartcard-remote.sh             # which readers, and who has them
+card-tools/smartcard-remote.sh --attach    # hand the reader to WSL
+card-tools/smartcard-remote.sh --detach    # give it back to Windows
+```
+
+From PowerShell (no administrator window needed), with the project path as
+Windows sees it - for `~/mini-pki` in the distribution `Ubuntu`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu\home\<you>\mini-pki\card-tools\Smartcard-Remote.ps1 -Attach
+```
+
+`-ExecutionPolicy Bypass` is only needed when Windows blocks scripts
+(*"running scripts is disabled on this system"*). `-Attach`, `--attach` and
+`attach` all work.
+
+| Action | What it does |
+|---|---|
+| `--detect` (default) | Lists the smartcard readers with BUSID, VID:PID, name and state: `Windows`, `shared, not attached`, `shared (forced) - Windows cannot use it`, `attached to WSL` |
+| `--attach [NAME]` | Shares the reader if needed (UAC prompt), then attaches it to WSL. WSL must be running - run it from a WSL terminal or keep one open |
+| `--detach [NAME]` | Detaches it from WSL and stops sharing it (UAC prompt), so Windows can use it again |
+
+`NAME` is the BUSID (`12-4`), the VID:PID (`076b:3031`) or part of the reader
+name (`omnikey`); without it the only connected reader is used. Reader names
+come from the USB ID list that ships with usbipd-win, because Windows calls
+every reader *"Microsoft Usbccid Smartcard Reader"*:
+
+```
+usbipd-win 5.3.0   WSL: running (Ubuntu)
+Smartcard readers:
+  12-4   076b:3031  OmniKey AG 3x21 Smart Card Reader          attached to WSL
+Next: -Detach  (give it back to Windows)
+```
+
+After unplugging the reader or restarting WSL, run `--attach` again.
+
 ## Troubleshooting
 
 | Symptom | Cause / fix |
 |---|---|
+| `Smartcard-Remote.ps1`: *administrator rights were not granted* | The UAC prompt was declined or not answered - run it again and confirm the prompt |
+| *running scripts is disabled on this system* | Windows execution policy - run it as `powershell -ExecutionPolicy Bypass -File ...Smartcard-Remote.ps1`, or use the WSL wrapper `card-tools/smartcard-remote.sh` |
 | `usbipd: command not found` / not recognized | usbipd-win not installed (step 2), or PowerShell opened before the installation - open a new one |
 | `usbipd list` warns about `USBPcap` or another filter | `usbipd bind --busid <BUSID> --force` (step 3) |
 | `attach` fails because the device is not shared | Run `usbipd bind` as administrator first (step 3); after moving the reader to another USB port its BUSID changed |
