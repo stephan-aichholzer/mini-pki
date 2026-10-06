@@ -2,12 +2,24 @@
 #
 # Sets up two arrays the scripts splice into their openssl calls, so the
 # same script works whether the CA key is a file or lives on a smartcard:
-#   CA_REQ_KEY_ARGS   - for `openssl req -x509` (self-signing the root)
+#   CA_REQ_KEY_ARGS   - for `openssl req` (CSR, self-signing a root)
 #   CA_SIGN_ARGS      - for `openssl ca` (issuing certificates)
+#
+# The scripts work on the CA directory they are run from (openssl.cnf,
+# index.txt, certs/ ...). That is this repository by default, or any
+# directory set up with init-ca-database.sh - one directory per CA.
 
 PKI_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=../pki.conf
 . "$PKI_DIR/pki.conf"
+# A CA directory of its own may have its own pki.conf (card, key label, ID,
+# ...), read after the repository's defaults
+CA_LOCAL_CONF=
+if [ -f pki.conf ] && [ "$(pwd -P)" != "$(cd "$PKI_DIR" && pwd -P)" ]; then
+    # shellcheck source=/dev/null
+    . ./pki.conf
+    CA_LOCAL_CONF=$(pwd)/pki.conf
+fi
 # --card / --file on the command line (lib/cli.sh) win over pki.conf
 if [ -n "${CLI_CA_BACKEND:-}" ]; then
     CA_BACKEND=$CLI_CA_BACKEND
@@ -17,9 +29,15 @@ fi
 
 case "$CA_BACKEND" in
 file)
-    CA_REQ_KEY_ARGS=(-key private/ca-key.pem)
+    # CA_PASSPHRASE lets scripts run without prompting - tests only
+    CA_PASSIN_ARGS=()
+    if [ -n "${CA_PASSPHRASE:-}" ]; then
+        export CA_PASSPHRASE
+        CA_PASSIN_ARGS=(-passin env:CA_PASSPHRASE)
+    fi
+    CA_REQ_KEY_ARGS=(-key private/ca-key.pem "${CA_PASSIN_ARGS[@]}")
     # openssl.cnf already points private_key at private/ca-key.pem
-    CA_SIGN_ARGS=()
+    CA_SIGN_ARGS=("${CA_PASSIN_ARGS[@]}")
     CA_SECRET_NAME="CA passphrase"
     ;;
 card)
@@ -241,4 +259,91 @@ preflight_fail() {
     local line
     for line in "$@"; do echo "    $line" >&2; done
     exit 1
+}
+
+# The key pair of a new CA (root or intermediate).
+# Card: generate CARD_KEY_TYPE on the card under CARD_KEY_LABEL / CARD_KEY_ID,
+# or - after asking - reuse a key that already has that label.
+# File: a passphrase-protected RSA-4096 key in private/ca-key.pem.
+ca_key_create() {
+    if [ "$CA_BACKEND" = card ]; then
+        [ -z "$CARD_PIN" ] && echo "You will be prompted for the card PIN (possibly more than once)"
+        if card_has_ca_key; then
+            echo "A key labelled '$CARD_KEY_LABEL' already exists on the card."
+            read -r -p "Reuse it for this CA? (Y/n): " REPLY
+            if [[ $REPLY =~ ^[Nn]$ ]]; then
+                echo "Aborted. Delete the key with pkcs11-tool or choose another CARD_KEY_LABEL."
+                exit 1
+            fi
+        else
+            case "$CARD_KEY_TYPE" in
+                rsa:*|RSA:*) echo "Generating $CARD_KEY_TYPE on the card - RSA-4096 takes about 2 minutes..." ;;
+                *)           echo "Generating $CARD_KEY_TYPE on the card..." ;;
+            esac
+            card_tool --login --keypairgen --key-type "$CARD_KEY_TYPE" \
+                --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL"
+        fi
+        # A file key left over from file mode would be misleading
+        rm -f private/ca-key.pem
+    else
+        if [ -n "${CA_PASSPHRASE:-}" ]; then
+            openssl genrsa -aes256 -passout env:CA_PASSPHRASE -out private/ca-key.pem 4096
+        else
+            echo "You will be prompted to enter a passphrase (min 4 characters)"
+            openssl genrsa -aes256 -out private/ca-key.pem 4096
+        fi
+        chmod 600 private/ca-key.pem
+    fi
+}
+
+# SHA-256 of the CA public key (DER SubjectPublicKeyInfo), card or file
+ca_key_pubkey_sha256() {
+    if [ "$CA_BACKEND" = card ]; then
+        card_pubkey_sha256
+    else
+        openssl pkey -in private/ca-key.pem "${CA_PASSIN_ARGS[@]}" -pubout -outform DER \
+            | sha256sum | cut -d' ' -f1
+    fi
+}
+
+# Card mode: store certs/ca-cert.pem on the card next to its key, replacing
+# an older CA certificate with the same label, and write ca-card.manifest
+ca_cert_to_card() {
+    [ "$CA_BACKEND" = card ] || return 0
+    echo "Writing the CA certificate to the card..."
+    openssl x509 -in certs/ca-cert.pem -outform DER -out certs/ca-cert.der
+    # pkcs11-tool prompts for the PIN on stdout and reads it with stdout's
+    # terminal settings: redirecting stdout of a --login call fails with
+    # "util_getpass error", so these calls keep stdout on the terminal.
+    # Certificates are public objects, so the check itself needs no PIN.
+    if card_tool --list-objects --type cert 2>/dev/null \
+            | grep -q "label: *${CARD_KEY_LABEL}\$"; then
+        echo "Removing the previous CA certificate from the card..."
+        card_tool --login --delete-object --type cert --label "$CARD_KEY_LABEL"
+    fi
+    card_tool --login --write-object certs/ca-cert.der --type cert \
+        --id "$CARD_KEY_ID" --label "$CARD_KEY_LABEL"
+    rm -f certs/ca-cert.der
+    echo "✓ CA certificate stored on the card"
+    # Record which card this CA lives on, readable without the card
+    write_card_manifest
+    echo "✓ Card recorded in $CARD_MANIFEST (serial $(manifest_get token_serial))"
+}
+
+# The certificate file to verify against: the chain of an intermediate CA
+# (this CA up to the root), else the CA certificate itself
+ca_verify_file() {
+    if [ -f certs/ca-chain.pem ]; then
+        echo certs/ca-chain.pem
+    else
+        echo certs/ca-cert.pem
+    fi
+}
+
+# The last certificate (PEM) in a file - the root of a chain file
+last_cert() {
+    awk '/-----BEGIN CERTIFICATE-----/ { buf = "" }
+         { buf = buf $0 "\n" }
+         /-----END CERTIFICATE-----/ { last = buf }
+         END { printf "%s", last }' "$1"
 }

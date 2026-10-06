@@ -8,20 +8,31 @@ usage() {
     cat <<EOF
 Usage: $0 [--card | --file] [-h | --help]
 
-Creates the CA database that 'openssl ca' needs. Existing files are kept,
-so running it again is harmless. In card mode it first checks that the card
-is present and its PIN is neither expired nor locked (read-only, no PIN).
+Creates the CA database that 'openssl ca' needs in the current directory.
+Existing files are kept, so running it again is harmless. In card mode it
+first checks that the card is present and its PIN is neither expired nor
+locked (read-only, no PIN).
+
+Run it in this repository (the default CA directory), or in an empty
+directory to set up a further CA there - e.g. an intermediate CA. Run all
+mini-pki scripts from inside the CA directory they should work on.
 
 EOF
     backend_help
     cat <<EOF
 Creates (if missing):
+  certs/ private/ newcerts/ crl/
+  openssl.cnf        copied from the repository (other CA directories only)
   index.txt          register of issued certificates
   index.txt.attr     unique_subject = no (a name may be issued again)
   serial             next certificate serial number (starts at 1000)
   crlnumber          next CRL number (starts at 1000)
 
-Next step: ./create-root-ca.sh
+Optional: a pki.conf in a CA directory of its own overrides the
+repository's pki.conf for that CA (CA_BACKEND, CARD_TOKEN, CARD_KEY_LABEL,
+CARD_KEY_ID, CARD_KEY_TYPE ...).
+
+Next step: create-root-ca.sh, or create-intermediate-ca.sh request
 EOF
 }
 
@@ -36,6 +47,20 @@ echo ""
 
 # In card mode, make sure the card is usable before setting anything up
 card_preflight init
+
+# A CA directory other than the repository gets the folders and its own
+# copy of openssl.cnf (paths in it are relative to the CA directory)
+for d in certs private newcerts crl; do
+    if [ ! -d "$d" ]; then
+        mkdir -p "$d"
+        echo "✓ Created $d/"
+    fi
+done
+chmod 700 private
+if [ ! -f openssl.cnf ]; then
+    cp "$PKI_DIR/openssl.cnf" openssl.cnf
+    echo "✓ Copied openssl.cnf from $PKI_DIR"
+fi
 
 # Create CA database file
 if [ ! -f index.txt ]; then
@@ -77,9 +102,12 @@ fi
 echo ""
 echo "=== CA Database Initialized ==="
 echo ""
-echo "You can now create certificates using:"
-echo "  ./create-root-ca.sh"
-echo "  ./create-server-cert.sh <hostname>"
-echo "  ./create-client-cert.sh <client-name>"
-echo "  ./create-code-signing-cert.sh <signer-name>"
+SCRIPTS=$(dirname "$0")
+echo "Next steps (from this directory):"
+echo "  $SCRIPTS/create-root-ca.sh                    a root CA, or"
+echo "  $SCRIPTS/create-intermediate-ca.sh request    a CA below another one"
+echo "Then issue certificates, e.g.:"
+echo "  $SCRIPTS/create-server-cert.sh <hostname>"
+echo "  $SCRIPTS/create-client-cert.sh <client-name>"
+echo "  $SCRIPTS/create-code-signing-cert.sh <signer-name>"
 echo ""

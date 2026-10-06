@@ -26,6 +26,19 @@ All notable changes to this project will be documented in this file.
 - `docs/card-mode-wsl2.md`: card mode under WSL2 - usbipd-win installation,
   binding and attaching the reader (PowerShell), SAC core package, polkit
   rule for pcscd, troubleshooting
+- Intermediate CAs ([docs/intermediate-ca.md](docs/intermediate-ca.md)):
+  `create-intermediate-ca.sh request | install` in the new CA's directory and
+  `sign-intermediate-ca.sh CSR [--pathlen N] [--days N] [--yes]` in the
+  parent's. Path length and validity are checked against the parent; install
+  checks key, CA flag and the chain up to the root and writes
+  `certs/ca-chain.pem`. Works with file and card keys, also on different cards
+- One directory per CA: the scripts work on the directory they are run
+  from; `init-ca-database.sh` sets up a new CA directory (folders, copy of
+  `openssl.cnf`), and a `pki.conf` there overrides the repository's for that CA
+- `--subject DN` on `create-root-ca.sh` and `create-intermediate-ca.sh request`
+  replaces the interactive subject prompts
+- `CA_PASSPHRASE` lets file-mode CA operations run without a passphrase
+  prompt (tests only, like `CARD_PIN`)
 - `card-tools/card-import-p12.py`: loads a private key and its certificate
   from a PKCS#12 file onto a card (sensitive, not extractable), verifies a
   test signature against the certificate and rolls back on any error.
@@ -43,6 +56,11 @@ All notable changes to this project will be documented in this file.
   `SAC_*.zip`): SAC is licensed with the cards and must not be redistributed
 
 ### Changed
+- The issuing scripts print verify hints with `certs/ca-chain.pem` in an
+  intermediate CA directory, and `test-server-cert-openssl.sh` sends the
+  chain
+- Key creation and storing the CA certificate on the card are shared
+  functions in `lib/ca-key.sh` (used by root and intermediate CAs)
 - Documentation layout: all guides live in `docs/` with consistent names -
   `DOCKER.md` -> `docs/docker.md`, `docs/PIN_USAGE.md` -> `docs/card-pins.md`,
   and the smartcard section of the README -> `docs/card-mode.md`. The README

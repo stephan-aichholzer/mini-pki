@@ -8,6 +8,8 @@ A comprehensive toolkit for managing a self-signed Certificate Authority (CA) an
 ## Features
 
 - 🔐 **Self-signed CA** - Create your own Certificate Authority
+- 🌳 **CA Hierarchy** - Intermediate CAs below the root, any depth, each
+  with its key in a file or on a card ([docs/intermediate-ca.md](docs/intermediate-ca.md))
 - 🌐 **Server Certificates** - TLS/HTTPS with Subject Alternative Names (SAN)
 - 👤 **Client Certificates** - Mutual TLS authentication
 - ✍️ **Code Signing** - Sign software, scripts, and documents
@@ -97,6 +99,7 @@ can be re-issued for a name that already exists in the database.
 | Document | Content |
 |---|---|
 | [README.md](README.md) | Overview, file mode, working with certificates (this file) |
+| [docs/intermediate-ca.md](docs/intermediate-ca.md) | CA hierarchy: intermediate CAs, one directory per CA |
 | [docs/docker.md](docs/docker.md) | Running the CA in a container |
 | [docs/card-mode.md](docs/card-mode.md) | CA key on a smartcard: setup, card tools, troubleshooting |
 | [docs/card-mode-wsl2.md](docs/card-mode-wsl2.md) | Card mode under WSL2: usbipd-win (PowerShell), SAC, polkit |
@@ -110,6 +113,8 @@ can be re-issued for a name that already exists in the database.
 mini-pki/
 ├── init-ca-database.sh          # CA database setup
 ├── create-root-ca.sh            # Root CA (file or card)
+├── create-intermediate-ca.sh    # Intermediate CA: request / install
+├── sign-intermediate-ca.sh      # Issue an intermediate CA certificate
 ├── create-server-cert.sh        # TLS server certificates
 ├── create-client-cert.sh        # Client / mutual TLS certificates
 ├── create-code-signing-cert.sh  # Code signing certificates
@@ -119,6 +124,7 @@ mini-pki/
 ├── test-server-cert-openssl.sh  # TLS test with openssl s_server
 ├── openssl.cnf                  # OpenSSL configuration and profiles
 ├── pki.conf                     # CA key backend (file or card) and card settings
+│                                #   (a CA directory may add its own pki.conf)
 ├── lib/
 │   ├── ca-key.sh                # Shared CA key handling, card pre-flight check
 │   ├── cli.sh                   # Shared --help / --card / --file option parsing

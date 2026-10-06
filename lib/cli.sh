@@ -4,6 +4,8 @@
 # calls parse_cli "$@". parse_cli
 #   - prints usage() and exits for -h / --help,
 #   - handles --card / --file when the script set CLI_BACKEND_OPTS=1,
+#   - takes value options listed in CLI_VALUE_OPTS (e.g. "--subject --days"),
+#     as "--days 30" or "--days=30", into the CLI_OPT array (CLI_OPT[--days]),
 #   - rejects unknown options,
 #   - leaves the positional arguments in the ARGS array.
 # Options may appear anywhere; "--" ends option parsing.
@@ -13,6 +15,7 @@
 
 parse_cli() {
     ARGS=()
+    declare -gA CLI_OPT=()
     while [ $# -gt 0 ]; do
         case "$1" in
             -h|--help)
@@ -27,6 +30,17 @@ parse_cli() {
                 shift
                 ARGS+=("$@")
                 break
+                ;;
+            --?*)
+                local name=${1%%=*}
+                [[ " ${CLI_VALUE_OPTS:-} " == *" $name "* ]] || cli_error "unknown option $1"
+                if [[ $1 == *=* ]]; then
+                    CLI_OPT[$name]=${1#*=}
+                else
+                    [ $# -gt 1 ] || cli_error "$1 needs a value"
+                    CLI_OPT[$name]=$2
+                    shift
+                fi
                 ;;
             -?*)
                 cli_error "unknown option $1"
@@ -49,13 +63,23 @@ cli_error() {
 backend_help() {
     local current
     current=$(CA_BACKEND=${CA_BACKEND:-} && . "$(dirname "${BASH_SOURCE[0]}")/../pki.conf" \
-        2>/dev/null && echo "$CA_BACKEND")
+        2>/dev/null && { [ ! -f pki.conf ] || . ./pki.conf 2>/dev/null; } && echo "$CA_BACKEND")
     cat <<EOF
 CA key backend:
   --card        use the CA key on the smartcard (card mode)
   --file        use the passphrase-protected private/ca-key.pem (file mode)
                 Default: CA_BACKEND from pki.conf or the environment
-                (currently: ${current:-file}). Card settings live in pki.conf.
+                (currently: ${current:-file}). Card settings live in pki.conf -
+                the repository's, plus a pki.conf in this CA directory if any.
+
+EOF
+}
+
+# Help section for scripts that take --subject
+subject_help() {
+    cat <<EOF
+  --subject DN  the certificate subject, e.g. "/C=AT/O=Example/CN=Example CA",
+                instead of the interactive prompts
 
 EOF
 }

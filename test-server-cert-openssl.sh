@@ -123,16 +123,16 @@ fi
 echo "Starting server on port $PORT..."
 echo ""
 
-# Start OpenSSL server
-if [ -f "certs/ca-cert.pem" ]; then
-    openssl s_server -accept $PORT \
-        -cert "$CERTIFICATE" \
-        -key "$PRIVATE_KEY" \
-        -CAfile certs/ca-cert.pem \
-        -www
-else
-    openssl s_server -accept $PORT \
-        -cert "$CERTIFICATE" \
-        -key "$PRIVATE_KEY" \
-        -www
+# Start OpenSSL server. In an intermediate CA directory the server also
+# sends the chain (this CA up to the root), as a real server must.
+CHAIN_ARGS=()
+if [ -f "certs/ca-chain.pem" ]; then
+    CHAIN_ARGS=(-cert_chain certs/ca-chain.pem -CAfile certs/ca-chain.pem)
+elif [ -f "certs/ca-cert.pem" ]; then
+    CHAIN_ARGS=(-CAfile certs/ca-cert.pem)
 fi
+openssl s_server -accept $PORT \
+    -cert "$CERTIFICATE" \
+    -key "$PRIVATE_KEY" \
+    "${CHAIN_ARGS[@]}" \
+    -www

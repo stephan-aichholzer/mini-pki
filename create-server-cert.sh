@@ -167,7 +167,7 @@ echo "To view the certificate:"
 echo "  openssl x509 -noout -text -in certs/${BASENAME}-cert.pem"
 echo ""
 echo "To verify against CA:"
-echo "  openssl verify -CAfile certs/ca-cert.pem certs/${BASENAME}-cert.pem"
+echo "  openssl verify -CAfile $(ca_verify_file) certs/${BASENAME}-cert.pem"
 echo ""
 if [ "$USE_PASSWORD" = true ]; then
     echo "To remove passphrase from private key (if needed for automated startup):"
