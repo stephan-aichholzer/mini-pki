@@ -111,9 +111,11 @@ mini-pki/
 ├── lib/
 │   ├── ca-key.sh                # Shared CA key handling, card pre-flight check
 │   ├── cli.sh                   # Shared --help / --card / --file option parsing
+│   ├── pcsc.sh                  # Detects pcscd refusing access (polkit)
 │   └── pkcs11-provider.sh       # Locates the OpenSSL pkcs11 provider
 ├── card-tools/                  # Optional smartcard helpers (see Card tools)
 ├── docs/PIN_USAGE.md            # Which PIN protects which key on the card
+├── HOWTO_WSL2_SETUP.md           # Card mode under WSL2 (usbipd-win, polkit)
 ├── README.md, DOCKER.md, CHANGELOG.md, LICENSE, Dockerfile
 │
 │   Created at runtime (git-ignored):
@@ -306,6 +308,10 @@ card-tools/setup.sh
 | 4 | OpenSSL pkcs11 provider `card-tools/pkcs11-provider/pkcs11.so` | built by `build-pkcs11-provider.sh` |
 | 5 | Python card tools in `card-tools/.venv` | `requirements.txt` |
 | 6 | Final check | `card-status.sh` |
+
+**On WSL2** the reader must first be passed from Windows to WSL with
+usbipd-win, and pcscd must be allowed to serve your WSL shell (polkit) - see
+[HOWTO_WSL2_SETUP.md](HOWTO_WSL2_SETUP.md), including the PowerShell part.
 
 It never uses `sudo`: missing system packages are listed as one ready-made
 command, e.g. `sudo apt install opensc build-essential curl` (Debian/Ubuntu).
@@ -514,6 +520,8 @@ PKCS#11 and eIDAS) and what was measured on a real card:
 
 | Symptom | Cause / fix |
 |---|---|
+| `pcscd refuses access - readers are hidden, not missing` | polkit only lets active local login sessions use pcscd; WSL2, IDE terminals and ssh are not. Install `card-tools/pcscd-polkit.rules` - [HOWTO_WSL2_SETUP.md](HOWTO_WSL2_SETUP.md) step 6 |
+| `no reader found` on WSL2 | Reader not attached to WSL: `usbipd attach --wsl --busid <BUSID>` - [HOWTO_WSL2_SETUP.md](HOWTO_WSL2_SETUP.md) |
 | `Card absent or mute` in the pcscd log, no ATR | Card inserted the wrong way round, or dirty contacts |
 | `CKR_PIN_EXPIRED` | Factory PIN still active - step 3 |
 | `CKR_ATTRIBUTE_VALUE_INVALID` on key generation | Curve not enabled on the card, e.g. `EC:secp384r1` - use `EC:prime256v1` or RSA |

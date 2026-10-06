@@ -1,0 +1,9 @@
+// polkit rule: let one user talk to pcscd without an active local login
+// session (WSL2 shells, IDE terminals, ssh). Install with your user name:
+//   sed "s/USERNAME/$USER/" card-tools/pcscd-polkit.rules | sudo tee /etc/polkit-1/rules.d/49-pcscd-$USER.rules
+// See HOWTO_WSL2_SETUP.md.
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.debian.pcsc-lite.access_pcsc" ||
+         action.id == "org.debian.pcsc-lite.access_card") && subject.user == "USERNAME")
+        return polkit.Result.YES;
+});

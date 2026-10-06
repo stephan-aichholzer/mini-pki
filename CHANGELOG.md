@@ -23,9 +23,18 @@ All notable changes to this project will be documented in this file.
   provider and the Python venv if missing, then runs `card-status.sh`
 - `card-tools/REFERENCE.md`: sources (Thales manuals and product briefs,
   OpenSC code, PKCS#11, eIDAS) and measurements taken on a real IDPrime 940
+- `HOWTO_WSL2_SETUP.md`: card mode under WSL2 - usbipd-win installation,
+  binding and attaching the reader (PowerShell), SAC core package, polkit
+  rule for pcscd, troubleshooting
+- `card-tools/pcscd-polkit.rules`: polkit rule template that lets one user
+  use pcscd outside an active local login session (WSL2, IDE terminals, ssh)
+- `lib/pcsc.sh`: detects pcscd refusing the caller via polkit (`pkcheck`)
 
 ### Changed
 - `build-pkcs11-provider.sh` downloads quietly (no curl progress meter)
+- `card-status.sh` and the card pre-flight check report *"pcscd refuses
+  access"* with the fix instead of the misleading *"no reader found"* /
+  *"no card found"* when polkit rejects the caller
 
 ## [1.2.0] - 2026-10-04
 

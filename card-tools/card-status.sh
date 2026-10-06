@@ -30,6 +30,7 @@ PKI_DIR=$DIR
 # shellcheck source=../pki.conf
 . "$DIR/pki.conf"
 . "$DIR/lib/pkcs11-provider.sh"
+. "$DIR/lib/pcsc.sh"
 OPENSC_MODULE=${OPENSC_MODULE:-$(ls /usr/lib/*/opensc-pkcs11.so /usr/lib/opensc-pkcs11.so 2>/dev/null | head -1)}
 
 ok()   { echo "  ✓ $*"; }
@@ -47,8 +48,13 @@ fi
 if READERS=$(opensc-tool -l 2>/dev/null | tail -n +3) && [ -n "$READERS" ]; then
     ok "reader(s):"
     echo "$READERS" | sed 's/^/      /'
+elif pcsc_access_denied; then
+    bad "pcscd refuses access - readers are hidden, not missing"
+    pcsc_access_denied_help | sed 's/^/    /'
+    exit 1
 else
     bad "no reader found"
+    info "WSL2: attach the reader first - usbipd.exe attach --wsl --busid <BUSID> (HOWTO_WSL2_SETUP.md)"
 fi
 
 section "Card"

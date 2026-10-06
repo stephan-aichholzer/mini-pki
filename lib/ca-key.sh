@@ -13,6 +13,7 @@ if [ -n "${CLI_CA_BACKEND:-}" ]; then
     CA_BACKEND=$CLI_CA_BACKEND
 fi
 . "$PKI_DIR/lib/pkcs11-provider.sh"
+. "$PKI_DIR/lib/pcsc.sh"
 
 case "$CA_BACKEND" in
 file)
@@ -173,6 +174,11 @@ card_preflight() {
         if [ -n "$CARD_TOKEN" ]; then
             preflight_fail "card '$CARD_TOKEN' (CARD_TOKEN in pki.conf) not found" \
                 "Another card inserted? Tokens present: card-tools/card-status.sh"
+        fi
+        if pcsc_access_denied; then
+            local help_lines=()
+            mapfile -t help_lines < <(pcsc_access_denied_help)
+            preflight_fail "no card visible: pcscd refuses access" "${help_lines[@]}"
         fi
         preflight_fail "no card found via $PKCS11_MODULE" \
             "Is pcscd running, the reader connected and the card inserted the right way?" \
