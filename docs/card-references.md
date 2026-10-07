@@ -88,6 +88,13 @@ Verified on a real card, not taken from documentation:
   (deleting objects alone leaves ~3 KB in use), new user PIN set and **not**
   flagged as expired, no admin warning flags. The Digital Signature PIN kept
   its value `000000` and its 3 tries (unlinked mode).
+- Admin key change (`card-change-admin-key.py`, IDPrime MD 840 with SAC):
+  factory key → test key → factory key, each step one admin login with the
+  current key plus `C_SetPIN`, then one verifying login with the new key; no
+  admin warning flags, keys and certificates on the card unchanged. SAC takes
+  the 48 hex characters as a 3DES key: for the challenge `0123456789ABCDEF`
+  the responses of a separate admin-key tool matched
+  `openssl enc -des-ede3 -K <key> -nopad` (factory key `617b3a0ce8f07100`).
 - After the factory reset, mini-pki card mode worked unchanged: RSA-4096
   generated on the empty card (~1 min this time - RSA key generation time
   varies), root CA, server and client certificates verified.

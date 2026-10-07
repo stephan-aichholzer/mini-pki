@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-change-admin-key.py`: replaces the admin key (SO PIN,
+  `C_Login` as SO + `C_SetPIN`). Shows the card, requires typing the card
+  serial, supports `--dry-run`, validates both keys locally, tries the
+  current key exactly once, refuses after earlier wrong admin attempts and
+  verifies the new key with one admin login. `--generate` creates a random
+  key and shows it before the change, which runs only after the operator
+  confirms it is recorded
 - `--help` / `-h` for every shell script: arguments, options, created files
   and examples. Unknown options are rejected with a pointer to `--help`
 - `--card` / `--file` on `init-ca-database.sh`, `create-root-ca.sh` and the

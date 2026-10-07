@@ -120,3 +120,5 @@ declarations — not needed for this project.
 - Remaining tries: `pkcs15-tool --list-pins` (user PIN 5, Signature PIN 3).
 - Never lock the admin key — a locked admin key makes the IDPrime 940
   permanently unusable (Thales known issue ASAC-11163).
+- The factory admin key (48 hex zeros) is public: replace it before a card
+  holds real keys (`card-tools/card-change-admin-key.py`).

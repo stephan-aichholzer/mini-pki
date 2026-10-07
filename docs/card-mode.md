@@ -222,6 +222,7 @@ CA signature differs from an eIDAS qualified signature:
 | `card-tools/smartcard-remote.sh [--detect \| --attach \| --detach] [NAME]` | WSL2 only: moves the USB reader between Windows and WSL2 via usbipd-win (runs `Smartcard-Remote.ps1` on the Windows side; shares/unshares with a UAC prompt). See [card-mode-wsl2.md](card-mode-wsl2.md#moving-the-reader-between-windows-and-wsl) |
 | `card-tools/card-set-expired-pin.py` | Changes an expired factory PIN via `C_SetPIN` without login |
 | `card-tools/card-import-p12.py FILE.p12 [--label L] [--id ID] [--dry-run] [--yes]` | Loads a private key and its certificate from a PKCS#12 file onto the card (key sensitive, not extractable), checks it with a test signature against the certificate and removes everything again if a step fails. Refuses a label or ID already in use. The same file can go onto several cards - a backup card. IDPrime 940: RSA-2048/4096 only, EC keys are refused |
+| `card-tools/card-change-admin-key.py [--factory-admin-key] [--generate] [--dry-run]` | Replaces the admin key (SO PIN) - the factory key is public. Keys and PINs stay. Shows the card, requires typing the card serial, validates both keys locally, tries the current one exactly once, refuses after earlier wrong admin attempts, then proves the new key with one admin login. `--generate` makes a random key and shows it **before** the change, which only runs after you confirm it is recorded |
 | `card-tools/card-wipe.py --objects \| --factory [--dry-run]` | Erases the card. `--objects` deletes all keys and certificates with the user PIN (admin key untouched); `--factory` re-initializes the token with the admin key and sets a new user PIN. Shows the card first, warns if it holds this directory's CA key, and only proceeds after you **type the card serial**. Refuses `--factory` if the card reports earlier wrong admin key attempts |
 
 The Python tools need `card-tools/.venv` (created by `setup.sh`) and use `$PKCS11_MODULE`
@@ -248,6 +249,18 @@ card-tools/.venv/bin/python card-tools/card-wipe.py --factory             # full
 
 `--factory` uses the admin key exactly once and never retries - a locked admin
 key makes an IDPrime 940 permanently unusable. It never changes the admin key.
+
+**Replacing the factory admin key** (before a card holds real keys - anyone
+who knows the admin key can reset the user PIN):
+
+```bash
+card-tools/.venv/bin/python card-tools/card-change-admin-key.py --factory-admin-key --generate --dry-run
+card-tools/.venv/bin/python card-tools/card-change-admin-key.py --factory-admin-key --generate
+```
+
+Without `--factory-admin-key` the current key is prompted; without
+`--generate` the new key is entered twice. Keep the new key in custody: it
+is the only way to unblock the user PIN or re-initialize the card.
 In SAC's default unlinked mode the Digital Signature PIN/PUK stay as they are.
 
 Sources behind the card mode (Thales manuals, product briefs, OpenSC code,
