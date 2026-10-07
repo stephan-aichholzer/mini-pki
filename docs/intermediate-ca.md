@@ -97,6 +97,23 @@ there:
 openssl verify -CAfile root-ca-cert.pem -untrusted certs/ca-chain.pem certs/server-cert.pem
 ```
 
+## Certificates for keys without a request
+
+Some keys cannot sign a certificate request - a TPM's endorsement key only
+decrypts, a restricted attestation key only signs the TPM's own data. For
+those, `sign-pubkey.sh` issues a certificate from the bare public key:
+
+```bash
+cd ~/pki/line
+~/mini-pki/sign-pubkey.sh device-key.pub.pem \
+    --subject "/O=Example/serialNumber=1234/CN=device 1234" \
+    --profile v3_device --extfile device-profiles.cnf --days 365
+```
+
+The certificate goes into this CA's register (`index.txt`, `newcerts/`) with
+the next serial, like one issued by `openssl ca`, and can be revoked the
+same way.
+
 ## Example: three CAs on three cards
 
 Verified on Thales IDPrime 940 cards (SAC 10.9): root (RSA-4096, card 1) →

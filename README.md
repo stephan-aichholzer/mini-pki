@@ -115,6 +115,7 @@ mini-pki/
 ├── create-root-ca.sh            # Root CA (file or card)
 ├── create-intermediate-ca.sh    # Intermediate CA: request / install
 ├── sign-intermediate-ca.sh      # Issue an intermediate CA certificate
+├── sign-pubkey.sh               # Certificate for a bare public key (e.g. TPM keys)
 ├── create-server-cert.sh        # TLS server certificates
 ├── create-client-cert.sh        # Client / mutual TLS certificates
 ├── create-code-signing-cert.sh  # Code signing certificates

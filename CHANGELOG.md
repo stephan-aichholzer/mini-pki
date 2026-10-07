@@ -26,6 +26,12 @@ All notable changes to this project will be documented in this file.
 - `docs/card-mode-wsl2.md`: card mode under WSL2 - usbipd-win installation,
   binding and attaching the reader (PowerShell), SAC core package, polkit
   rule for pcscd, troubleshooting
+- `sign-pubkey.sh PUBKEY.pem --subject DN --profile SECTION [--extfile F]`:
+  issues a certificate for a bare public key, for keys that cannot sign a
+  request (TPM endorsement or restricted attestation keys). Serials come
+  from the CA's serial file and each certificate is recorded in `index.txt`
+  and `newcerts/`, so it can be revoked like any other; validity is capped
+  by the issuing CA. Works with file and card CA keys
 - Intermediate CAs ([docs/intermediate-ca.md](docs/intermediate-ca.md)):
   `create-intermediate-ca.sh request | install` in the new CA's directory and
   `sign-intermediate-ca.sh CSR [--pathlen N] [--days N] [--yes]` in the
