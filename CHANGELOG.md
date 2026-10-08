@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-sign-file.sh`: detached CMS signature of a file with the
+  card key matching a certificate (e.g. a CA signing a report)
 - `card-find-ca.py --eku codeSigning|serverAuth|clientAuth`: the certificate
   must carry that extended key usage
 - `card-find-ca.py --root-sha256 FINGERPRINT`: trust a root by its pinned
