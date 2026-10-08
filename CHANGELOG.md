@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-export-cert.py`: reads a certificate from the card by
+  label (only if its key is on the same card) - restore public files from the cards alone
+- `card-find-ca.py --root-key`: find the card holding the trusted root's own key
 - `card-tools/card-sign-file.sh`: detached CMS signature of a file with the
   card key matching a certificate (e.g. a CA signing a report)
 - `card-find-ca.py --eku codeSigning|serverAuth|clientAuth`: the certificate

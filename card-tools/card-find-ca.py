@@ -10,7 +10,8 @@ used only if its SHA-256 fingerprint matches. --pathlen N demands the CA's path 
 a CA that may only sign end entities (a line CA, not an issuing CA).
 --leaf looks for a key that is NOT a CA instead (e.g. a code signing key),
 with the same chain check; --eku codeSigning additionally demands that
-extended key usage in its certificate.
+extended key usage in its certificate. --root-key looks for the trusted
+root's own key (the card that holds the root CA).
 
 On success prints shell assignments and exits 0:
     CARD_TOKEN, CARD_SERIAL, CARD_KEY_LABEL, CARD_KEY_ID  - card and key
@@ -77,6 +78,7 @@ def main():
     trust.add_argument("--root-sha256", help="SHA-256 fingerprint of the trusted root; the card's copy is used only if it matches")
     ap.add_argument("--pathlen", type=int, help="required path length constraint of the CA, e.g. 0")
     ap.add_argument("--leaf", action="store_true", help="look for a non-CA key (e.g. code signing) instead of a CA")
+    ap.add_argument("--root-key", action="store_true", help="look for the trusted root's own key")
     ap.add_argument("--eku", choices=["codeSigning", "serverAuth", "clientAuth"],
                     help="required extended key usage of the certificate, e.g. codeSigning")
     ap.add_argument("--out", required=True, help="folder for ca-cert.pem and ca-chain.pem")
@@ -135,7 +137,11 @@ def main():
                 bc = cert.extensions.get_extension_for_class(x509.BasicConstraints).value
             except x509.ExtensionNotFound:
                 bc = None
-            if args.leaf:
+            if args.root_key:
+                if cert.fingerprint(hashes.SHA256()) != anchor.fingerprint(hashes.SHA256()):
+                    reasons.append(f"{serial}: '{name(cert)}' is not the trusted root")
+                    continue
+            elif args.leaf:
                 if bc and bc.ca:
                     reasons.append(f"{serial}: '{name(cert)}' is a CA, not the key looked for")
                     continue
@@ -165,7 +171,8 @@ def main():
             ca_file = os.path.join(args.out, "ca-cert.pem")
             chain_file = os.path.join(args.out, "ca-chain.pem")
             open(ca_file, "w").write(pem(cert))
-            open(chain_file, "w").write("".join(pem(c) for c in chain) + pem(anchor))
+            top = [] if cert.fingerprint(hashes.SHA256()) == anchor.fingerprint(hashes.SHA256()) else [anchor]
+            open(chain_file, "w").write("".join(pem(c) for c in chain + top))
             # verify against the root from outside; the card's own root copy is not trusted
             untrusted = os.path.join(args.out, ".untrusted.pem")
             open(untrusted, "w").write("".join(pem(c) for c in chain[1:]) or pem(cert))
@@ -182,7 +189,7 @@ def main():
             values = (("CARD_TOKEN", info.label.strip()), ("CARD_SERIAL", serial),
                       ("CARD_KEY_LABEL", label), ("CARD_KEY_ID", key_id),
                       ("CA_CERT", ca_file), ("CA_CHAIN", chain_file), ("CA_SUBJECT", name(cert)),
-                      ("CHAIN_SUBJECTS", " -> ".join([name(c) for c in chain] + [name(anchor)])),
+                      ("CHAIN_SUBJECTS", " -> ".join(name(c) for c in chain + top)),
                       ("ROOT_CERT", root_file),
                       ("ROOT_SHA256", anchor.fingerprint(hashes.SHA256()).hex(":").upper()))
             for k, v in values:
