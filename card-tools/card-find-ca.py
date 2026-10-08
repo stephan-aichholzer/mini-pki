@@ -9,7 +9,8 @@ against the root the caller trusts, given from outside: either --root FILE, or
 used only if its SHA-256 fingerprint matches. --pathlen N demands the CA's path length constraint, e.g. 0 for
 a CA that may only sign end entities (a line CA, not an issuing CA).
 --leaf looks for a key that is NOT a CA instead (e.g. a code signing key),
-with the same chain check.
+with the same chain check; --eku codeSigning additionally demands that
+extended key usage in its certificate.
 
 On success prints shell assignments and exits 0:
     CARD_TOKEN, CARD_SERIAL, CARD_KEY_LABEL, CARD_KEY_ID  - card and key
@@ -76,6 +77,8 @@ def main():
     trust.add_argument("--root-sha256", help="SHA-256 fingerprint of the trusted root; the card's copy is used only if it matches")
     ap.add_argument("--pathlen", type=int, help="required path length constraint of the CA, e.g. 0")
     ap.add_argument("--leaf", action="store_true", help="look for a non-CA key (e.g. code signing) instead of a CA")
+    ap.add_argument("--eku", choices=["codeSigning", "serverAuth", "clientAuth"],
+                    help="required extended key usage of the certificate, e.g. codeSigning")
     ap.add_argument("--out", required=True, help="folder for ca-cert.pem and ca-chain.pem")
     ap.add_argument("--module", default=os.environ.get("PKCS11_MODULE", DEFAULT_MODULE),
                     help="PKCS#11 module (default: $PKCS11_MODULE or SAC)")
@@ -142,6 +145,17 @@ def main():
             elif args.pathlen is not None and bc.path_length != args.pathlen:
                 reasons.append(f"{serial}: '{name(cert)}' has path length {bc.path_length}, needed {args.pathlen}")
                 continue
+            if args.eku:
+                wanted = {"codeSigning": x509.ExtendedKeyUsageOID.CODE_SIGNING,
+                          "serverAuth": x509.ExtendedKeyUsageOID.SERVER_AUTH,
+                          "clientAuth": x509.ExtendedKeyUsageOID.CLIENT_AUTH}[args.eku]
+                try:
+                    ekus = cert.extensions.get_extension_for_class(x509.ExtendedKeyUsage).value
+                except x509.ExtensionNotFound:
+                    ekus = []
+                if wanted not in ekus:
+                    reasons.append(f"{serial}: '{name(cert)}' is not a {args.eku} certificate")
+                    continue
             # chain from the card: follow the issuers, stop below the root
             chain, cur = [cert], cert
             while cur.issuer != cur.subject and cur.issuer in by_subject and cur.issuer != anchor.subject:
