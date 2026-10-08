@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-find-key.py CERT`: finds the inserted card and the key that
+  belong to a certificate by comparing public keys (RSA, EC) - no PIN. Prints
+  shell assignments for scripts; exit 1 names what is in the reader instead
 - `card-tools/card-change-admin-key.py`: replaces the admin key (SO PIN,
   `C_Login` as SO + `C_SetPIN`). Shows the card, requires typing the card
   serial, supports `--dry-run`, validates both keys locally, tries the
