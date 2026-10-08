@@ -7,7 +7,8 @@ Only the public certificate is written; no key is created or changed.
 
 Safety:
   - the card and its objects are shown first; --dry-run stops there
-  - refuses a label or ID that is already in use
+  - refuses a label or ID that is already in use - unless --replace: then the
+    certificate with that label is replaced (same ID; a key is never touched)
   - does nothing if the identical certificate is already on the card
   - reads the certificate back after writing and compares it byte for byte
   - the user PIN is read from a hidden prompt (or CARD_PIN - test cards only)
@@ -15,6 +16,7 @@ Safety:
 Usage (from the repository root, after setting up card-tools/.venv):
     card-tools/.venv/bin/python card-tools/card-store-cert.py ISSUER.pem --label issuing-ca --dry-run
     card-tools/.venv/bin/python card-tools/card-store-cert.py ISSUER.pem --label issuing-ca
+    card-tools/.venv/bin/python card-tools/card-store-cert.py NEW.pem --label my-key --replace
 
 The card is $CARD_TOKEN, or the only/first inserted one. The PKCS#11 module
 defaults to $PKCS11_MODULE, else SAC (/usr/lib/libeTPkcs11.so).
@@ -82,6 +84,8 @@ def main():
     ap.add_argument("cert", help="certificate to store (PEM or DER)")
     ap.add_argument("--label", required=True, help="label of the certificate object, e.g. issuing-ca or root-ca")
     ap.add_argument("--id", help="object ID in hex (default: the next free one-byte ID)")
+    ap.add_argument("--replace", action="store_true",
+                    help="replace the certificate that has this label (same ID) - keys are never touched")
     ap.add_argument("--dry-run", action="store_true", help="show the card and the plan, write nothing")
     ap.add_argument("--module", default=os.environ.get("PKCS11_MODULE", DEFAULT_MODULE),
                     help="PKCS#11 module (default: $PKCS11_MODULE or SAC)")
@@ -120,14 +124,23 @@ def main():
             if value == der:
                 print(f"\n✓ already on the card as '{label}' (ID {obj_id}) - nothing to do")
                 return
-        used_ids = {o[2] for o in objs}
-        cka_id = (args.id or next(f"{n:02x}" for n in range(1, 256) if f"{n:02x}" not in used_ids)).lower()
-        for cls, label, obj_id, _ in objs:
-            if label == args.label:
-                fail(f"the card already has a {cls} labelled '{args.label}' - choose another --label")
-            if obj_id == cka_id:
-                fail(f"the card already has a {cls} with ID {cka_id} ('{label}') - choose another --id")
-        print(f"\nPlan: store it as certificate '{args.label}', ID {cka_id} (public, no key)")
+        old = [o for o in objs if o[0] == "certificate" and o[1] == args.label]
+        if args.replace:
+            if not old:
+                fail(f"--replace: no certificate labelled '{args.label}' on the card")
+            cka_id = (args.id or old[0][2]).lower()
+            old_subject = x509.load_der_x509_certificate(old[0][3]).subject.rfc4514_string()
+            print(f"\nPlan: replace certificate '{args.label}' (ID {old[0][2]}, {old_subject})")
+            print(f"      with this one, ID {cka_id} - keys are not touched")
+        else:
+            used_ids = {o[2] for o in objs}
+            cka_id = (args.id or next(f"{n:02x}" for n in range(1, 256) if f"{n:02x}" not in used_ids)).lower()
+            for cls, label, obj_id, _ in objs:
+                if label == args.label:
+                    fail(f"the card already has a {cls} labelled '{args.label}' - choose another --label, or --replace")
+                if obj_id == cka_id:
+                    fail(f"the card already has a {cls} with ID {cka_id} ('{label}') - choose another --id")
+            print(f"\nPlan: store it as certificate '{args.label}', ID {cka_id} (public, no key)")
         if args.dry_run:
             print("--dry-run: stopping here, nothing was written.")
             return
@@ -144,6 +157,14 @@ def main():
                     (PyKCS11.CKA_SUBJECT, list(cert.subject.public_bytes())),
                     (PyKCS11.CKA_ISSUER, list(cert.issuer.public_bytes())),
                     (PyKCS11.CKA_VALUE, list(der))]
+        if args.replace:
+            for obj in session.findObjects([(PyKCS11.CKA_CLASS, PyKCS11.CKO_CERTIFICATE),
+                                            (PyKCS11.CKA_LABEL, args.label)]):
+                try:
+                    session.destroyObject(obj)
+                except PyKCS11.PyKCS11Error as e:
+                    fail(f"removing the old certificate failed: {e} - nothing was written")
+            print(f"  ✓ old certificate '{args.label}' removed")
         try:
             session.createObject(template)
         except PyKCS11.PyKCS11Error as e:

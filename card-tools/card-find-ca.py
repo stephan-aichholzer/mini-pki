@@ -7,6 +7,8 @@ card - no PIN, nothing changed - writes them to --out, and verifies the chain
 against --root: the root the caller trusts, given from outside, never taken
 from the card. --pathlen N demands the CA's path length constraint, e.g. 0 for
 a CA that may only sign end entities (a line CA, not an issuing CA).
+--leaf looks for a key that is NOT a CA instead (e.g. a code signing key),
+with the same chain check.
 
 On success prints shell assignments and exits 0:
     CARD_TOKEN, CARD_SERIAL, CARD_KEY_LABEL, CARD_KEY_ID  - card and key
@@ -68,6 +70,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--root", required=True, help="the trusted root certificate (PEM) - from outside, not from the card")
     ap.add_argument("--pathlen", type=int, help="required path length constraint of the CA, e.g. 0")
+    ap.add_argument("--leaf", action="store_true", help="look for a non-CA key (e.g. code signing) instead of a CA")
     ap.add_argument("--out", required=True, help="folder for ca-cert.pem and ca-chain.pem")
     ap.add_argument("--module", default=os.environ.get("PKCS11_MODULE", DEFAULT_MODULE),
                     help="PKCS#11 module (default: $PKCS11_MODULE or SAC)")
@@ -106,10 +109,14 @@ def main():
                 bc = cert.extensions.get_extension_for_class(x509.BasicConstraints).value
             except x509.ExtensionNotFound:
                 bc = None
-            if not bc or not bc.ca:
+            if args.leaf:
+                if bc and bc.ca:
+                    reasons.append(f"{serial}: '{name(cert)}' is a CA, not the key looked for")
+                    continue
+            elif not bc or not bc.ca:
                 reasons.append(f"{serial}: '{name(cert)}' is not a CA")
                 continue
-            if args.pathlen is not None and bc.path_length != args.pathlen:
+            elif args.pathlen is not None and bc.path_length != args.pathlen:
                 reasons.append(f"{serial}: '{name(cert)}' has path length {bc.path_length}, needed {args.pathlen}")
                 continue
             # chain from the card: follow the issuers, stop below the root
@@ -144,7 +151,7 @@ def main():
                 print(f"{k}={shlex.quote(v)}")
             return
         if not any(k for k in keys if any(k[2] == find_key.cert_key(c) for c in certs)):
-            reasons.append(f"{serial}: no CA key with its certificate on this card")
+            reasons.append(f"{serial}: no key with its certificate on this card")
     err("; ".join(reasons) or "no suitable CA on the inserted card", 1)
 
 

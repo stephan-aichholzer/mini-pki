@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-store-cert.py --replace` and `card-find-ca.py --leaf` (a non-CA key,
+  e.g. code signing, with its chain read from the card)
 - `card-tools/card-find-ca.py`: finds the CA on the inserted card, reads its
   chain from the card and verifies it against a root given from outside;
   `--pathlen` tells a line CA from an issuing CA
