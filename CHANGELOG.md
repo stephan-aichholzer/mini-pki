@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-find-ca.py`: finds the CA on the inserted card, reads its
+  chain from the card and verifies it against a root given from outside;
+  `--pathlen` tells a line CA from an issuing CA
+- `card-tools/card-ca-sign-pubkey.sh`: certificate for a bare public key from
+  a CA on a card, without a CA directory (random 128-bit serial)
 - `card-tools/card-store-cert.py CERT --label L`: stores a certificate on a
   card without a key (e.g. the chain above an intermediate CA card);
   idempotent, refuses used labels/IDs, verifies by reading it back
