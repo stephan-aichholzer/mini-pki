@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-find-ca.py --root-sha256 FINGERPRINT`: trust a root by its pinned
+  fingerprint instead of a file - the root copy on the card is used if it matches
 - `card-store-cert.py --replace` and `card-find-ca.py --leaf` (a non-CA key,
   e.g. code signing, with its chain read from the card)
 - `card-tools/card-find-ca.py`: finds the CA on the inserted card, reads its
