@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-store-cert.py CERT --label L`: stores a certificate on a
+  card without a key (e.g. the chain above an intermediate CA card);
+  idempotent, refuses used labels/IDs, verifies by reading it back
 - `card-tools/card-find-key.py CERT`: finds the inserted card and the key that
   belong to a certificate by comparing public keys (RSA, EC) - no PIN. Prints
   shell assignments for scripts; exit 1 names what is in the reader instead

@@ -88,6 +88,7 @@ Verified on a real card, not taken from documentation:
   (deleting objects alone leaves ~3 KB in use), new user PIN set and **not**
   flagged as expired, no admin warning flags. The Digital Signature PIN kept
   its value `000000` and its 3 tries (unlinked mode).
+- Storing certificates without a key (`card-store-cert.py`): issuing and root CA certificates written next to the line CA key on an IDPrime 940, read back identically; a second run detects the identical certificate and writes nothing.
 - Key finder (`card-find-key.py`): finds the card by public key without a PIN - RSA-2048 on an IDPrime MD 840 and on a 940 (PK and KEK on the same card), EC P-256 on a 940 (key generated on the card); a certificate without its key on the inserted card is reported with the keys the card holds.
 - Admin key change (`card-change-admin-key.py`, IDPrime MD 840 with SAC):
   factory key → test key → factory key, each step one admin login with the
