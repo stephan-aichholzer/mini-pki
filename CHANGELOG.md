@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- `card-gen-key.sh` asks for the PIN itself (pkcs11-tool could not prompt with its output redirected)
+- `card-ca-sign-pubkey.sh`, `card-sign-file.sh`: stop cleanly when the card holding the key is not
+  inserted (before: an 'unbound variable' error after the message)
+
 ### Added
 - `card-tools/card-gen-key.sh`: generate a key pair on the card, write its public key
 - `card-store-cert.py --for-key`: store the certificate of a key on the card

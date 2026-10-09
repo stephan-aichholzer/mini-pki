@@ -32,7 +32,9 @@ for pair in FILE:FILE CERT:--cert OUT:--out; do
 done
 for f in "$FILE" "$CERT" ${CHAIN:+"$CHAIN"}; do [ -f "$f" ] || { echo "Not found: $f"; exit 1; }; done
 
-eval "$("$TOOLS/.venv/bin/python" "$TOOLS/card-find-key.py" "$CERT")"
+# the card holding the key; stop here if it is not inserted (the tool says why)
+found=$("$TOOLS/.venv/bin/python" "$TOOLS/card-find-key.py" "$CERT") || exit 1
+eval "$found"
 
 PKI_DIR=$(cd "$TOOLS/.." && pwd)
 PKCS11_PROVIDER_DIR=${PKCS11_PROVIDER_DIR:-}

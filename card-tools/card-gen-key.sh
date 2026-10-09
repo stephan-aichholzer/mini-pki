@@ -11,7 +11,7 @@
 #   --pubkey-out FILE  the new public key (PEM), e.g. to get a certificate for it
 #
 # Refuses if the label or the ID is already used on the card. The card PIN
-# comes from CARD_PIN (test cards only), otherwise pkcs11-tool asks for it.
+# comes from CARD_PIN (test cards only), otherwise it is asked for (hidden).
 
 set -euo pipefail
 TOKEN= LABEL= ID= TYPE= PUB=
@@ -38,8 +38,10 @@ OBJECTS=$("${P11[@]}" -O 2>/dev/null) || { echo "✗ card '$TOKEN' not found"; e
 if grep -q "label: *$LABEL\$" <<< "$OBJECTS"; then echo "✗ the card already holds an object labelled '$LABEL'"; exit 1; fi
 if grep -qi "ID: *$ID\$" <<< "$OBJECTS"; then echo "✗ ID $ID is already used on the card"; exit 1; fi
 
-PIN=()
-[ -n "${CARD_PIN:-}" ] && PIN=(--pin "$CARD_PIN")
+if [ -z "${CARD_PIN:-}" ]; then
+    read -r -s -p "Card PIN for '$TOKEN': " CARD_PIN; echo
+fi
+PIN=(--pin "$CARD_PIN")
 echo "Generating $TYPE on card '$TOKEN' (label '$LABEL', ID $ID)..."
 "${P11[@]}" --login "${PIN[@]}" --keypairgen --key-type "$TYPE" --id "$ID" --label "$LABEL" > /dev/null
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT

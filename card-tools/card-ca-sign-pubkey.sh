@@ -44,7 +44,9 @@ openssl x509 -checkend $((DAYS * 86400)) -noout -in "$CA_CERT" > /dev/null \
     || { echo "$DAYS days would outlive the CA (until $(openssl x509 -noout -enddate -in "$CA_CERT" | sed 's/^notAfter=//'))"; exit 1; }
 
 # the card and key that belong to the CA certificate
-eval "$("$TOOLS/.venv/bin/python" "$TOOLS/card-find-key.py" "$CA_CERT")"
+# the card holding the key; stop here if it is not inserted (the tool says why)
+found=$("$TOOLS/.venv/bin/python" "$TOOLS/card-find-key.py" "$CA_CERT") || exit 1
+eval "$found"
 
 # OpenSSL pkcs11 provider, as for the CA scripts
 PKI_DIR=$(cd "$TOOLS/.." && pwd)
