@@ -17,6 +17,11 @@ Usage (from the repository root, after setting up card-tools/.venv):
     card-tools/.venv/bin/python card-tools/card-store-cert.py ISSUER.pem --label issuing-ca --dry-run
     card-tools/.venv/bin/python card-tools/card-store-cert.py ISSUER.pem --label issuing-ca
     card-tools/.venv/bin/python card-tools/card-store-cert.py NEW.pem --label my-key --replace
+    card-tools/.venv/bin/python card-tools/card-store-cert.py KEY-CERT.pem --label my-key --for-key
+
+--for-key: the certificate OF a key on the card (e.g. one just generated with
+card-gen-key.sh) - stored next to that key, with its label and ID, only if the
+certificate's public key is that key's and the key has no certificate yet.
 
 The card is $CARD_TOKEN, or the only/first inserted one. The PKCS#11 module
 defaults to $PKCS11_MODULE, else SAC (/usr/lib/libeTPkcs11.so).
@@ -30,6 +35,11 @@ import sys
 import PyKCS11
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from importlib import import_module  # noqa: E402
+
+find_key = import_module("card-find-key")   # card_public_keys(), cert_key()
 
 DEFAULT_MODULE = "/usr/lib/libeTPkcs11.so"
 CLASS_NAMES = {
@@ -86,6 +96,8 @@ def main():
     ap.add_argument("--id", help="object ID in hex (default: the next free one-byte ID)")
     ap.add_argument("--replace", action="store_true",
                     help="replace the certificate that has this label (same ID) - keys are never touched")
+    ap.add_argument("--for-key", action="store_true",
+                    help="the certificate of a key on the card: stored next to it (its label and ID)")
     ap.add_argument("--dry-run", action="store_true", help="show the card and the plan, write nothing")
     ap.add_argument("--module", default=os.environ.get("PKCS11_MODULE", DEFAULT_MODULE),
                     help="PKCS#11 module (default: $PKCS11_MODULE or SAC)")
@@ -125,7 +137,17 @@ def main():
                 print(f"\n✓ already on the card as '{label}' (ID {obj_id}) - nothing to do")
                 return
         old = [o for o in objs if o[0] == "certificate" and o[1] == args.label]
-        if args.replace:
+        if args.for_key:
+            match = [k for k in find_key.card_public_keys(session) if k[2] == find_key.cert_key(cert)]
+            if not match:
+                fail("--for-key: the card holds no key matching this certificate")
+            key_label, cka_id = match[0][0], match[0][1].lower()
+            if key_label != args.label:
+                fail(f"--for-key: the matching key is labelled '{key_label}', not '{args.label}'")
+            if any(o[0] == "certificate" and o[2] == cka_id for o in objs):
+                fail(f"--for-key: the key '{key_label}' (ID {cka_id}) already has a certificate - use --replace")
+            print(f"\nPlan: store it next to its key '{key_label}', ID {cka_id} (public)")
+        elif args.replace:
             if not old:
                 fail(f"--replace: no certificate labelled '{args.label}' on the card")
             cka_id = (args.id or old[0][2]).lower()

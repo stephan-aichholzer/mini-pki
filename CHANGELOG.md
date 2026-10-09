@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `card-tools/card-gen-key.sh`: generate a key pair on the card, write its public key
+- `card-store-cert.py --for-key`: store the certificate of a key on the card
+  next to it (its label and ID), only if the certificate is for that key
 - `card-tools/card-export-cert.py`: reads a certificate from the card by
   label (only if its key is on the same card) - restore public files from the cards alone
 - `card-find-ca.py --root-key`: find the card holding the trusted root's own key
